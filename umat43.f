@@ -149,7 +149,7 @@ c
       real var_nonloc, var_loc, dnl, lr, le, eps_star
       double precision c(3,3), u(3,3), V(3,3), D(3), C4(6,6)
       
-      print *, "Hello from subroutine"
+c      print *, "Hello from subroutine"
 c
 c     Initialize/set parameters:−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−
       num_hv = int(cm(19))! Number of history variables in use
@@ -319,9 +319,6 @@ c         Check if yieldsurface boundary is exceeded
           call compute_yield_coupled(ftrial,sig_trial(1),
      1     sig_trial(4), sig_trial(6), m, ytt, ytl, ytw)
 
-c!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-c          ftrial = 0.0001
-c!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
           if (ftrial .gt. tol) then
 c
 c           Compute plastic flow direction and step size
@@ -379,8 +376,8 @@ c        call lsmg(3,MSG_SOL+1151,ioall, ierdat,rerdat,cerdat,0)
 c      endif
 c!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       endif
-      print "(5f15.2)", cm(1), cm(10), dlambda, sig(1), ftrial
-      print *, "Goodbye from subroutine"
+c      print "(5f15.2)", cm(1), cm(10), dlambda, sig(1), ftrial
+c      print *, "Goodbye from subroutine"
 c
 c
       return
@@ -445,6 +442,7 @@ c
       implicit none
       real m, f , sig11, sig12, sig13, ytt, ytl, ytw
 c
+
       f =(sig11/ytt)+((sig12/ytl)**2.0d0+(sig13/ytw)**2.0d0)**(m*0.5d0)
      1 -1.0d0
 c
@@ -581,7 +579,7 @@ c
      1   ytt, ytl, ytw)
 c
 c       Root update with secant method:
-        xr = 0. 0 d0
+        xr = 0.0d0
         if(abs(fimin-fi) .gt. 0.0d0)
      1    xr=xi-fi*(ximin-xi)/(fimin-fi)
         if(abs(fimin-fi) .eq. 0.0d0)

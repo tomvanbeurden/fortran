@@ -43,10 +43,13 @@ c     cm(23)= Poisson’s ratio on tw−axis
       logical :: failel = .false.
       logical :: reject = .false.
       integer :: idele = -1
-      integer :: num_hv = 11
+      integer :: num_hv
       integer :: elsiz = -1;
-
-	  print *, "Hello from main" 
+      real :: lambda = 1.0d0
+      real :: sigma11_list(100000)
+      real :: lambda_list( 100000)
+      integer :: i=1
+      print *, "Hello from main" 
 
       cm(1)= 110000000.0d0
       cm(2)= 120000000.0d0
@@ -56,12 +59,12 @@ c     cm(23)= Poisson’s ratio on tw−axis
       cm(6)= 75000000.0d0
       cm(7)= 45000000.0d0
       cm(8)= 0.013d0
-      cm(9 )= 500000.0d0
-      cm(10)= 350000.0d0
-      cm(11)= 260000.0d0
-      cm(12)= 300000.0d0
-      cm(13)= 140000.0d0
-      cm(14)= 100000.0d0
+      cm(9 )= -500000.0d0
+      cm(10)= -350000.0d0
+      cm(11)= -260000.0d0
+      cm(12)= -300000.0d0
+      cm(13)= -140000.0d0
+      cm(14)= -100000.0d0
       cm(15)= 0.3d0
       cm(16)= 0.1d0
       cm(17)= 0.8d0
@@ -72,16 +75,41 @@ c     cm(23)= Poisson’s ratio on tw−axis
       cm(22)= 0.000088d0
       cm(23)= 0.33d0
 
-      
+      num_hv = int(cm(19))! Number of history variables in use
 
 c      print "(2f12.2)", cm(1), cm(10)
+      
 
 
-      call umat43(cm, eps, sig, epsp, hsv, dt1, etype,
-     1 failel, elsiz, idele, reject)
+c      call umat43(cm, eps, sig, epsp, hsv, dt1, etype,
+c     1 failel, elsiz, idele, reject)
 
 
+      
+      open (10, file='output_file.txt', status='unknown')
+      do while(lambda .gt. 0.05d0)
+        hsv(num_hv+1) = lambda
+        hsv(num_hv+5) = 1.0d0
+        hsv(num_hv+9) = 1.0d0
+c
+        call umat43(cm, eps, sig, epsp, hsv, dt1, etype,
+     1   failel, elsiz, idele, reject)
+c     
+        lambda = lambda - 0.0001
+        sigma11_list(i) = sig(1)
+        lambda_list(i) = lambda
+c        
+        write(10,*)"", -(1.0-lambda), sig(1)
+        i = i+1
+      end do
 
+ 
+      
+      
 
+      
 
+c1000 FORMAT("BLABLABLA",F15.2,F7.2)      
+
+      close(10)
       END
