@@ -45,13 +45,10 @@ c      double precision :: cm(23) = 0.0d0
       logical :: reject = .false.
       integer :: idele = -1
       integer :: num_hv
-      integer :: elsiz = -1
-      real :: pi
-      real :: alpha
-      real :: u = 0.0d0, u_x = 0.0d0, u_y = 0.0d0
-      real :: u_list (100000)
+      integer :: elsiz = -1;
+      real :: lambda = 1.0d0
       real :: sigma11_list(100000)
-
+      real :: lambda_list (100000)
       integer :: i=1
       print *, "Hello from main" 
 
@@ -78,9 +75,7 @@ c      double precision :: cm(23) = 0.0d0
       cm(21)= 0.33d0
       cm(22)= 0.000088d0
       cm(23)= 0.33d0
-      
-      pi = 4.d0*datan(1.d0)
-      alpha = pi/180*70
+
       num_hv = int(cm(19))! Number of history variables in use
 
 c      print "(2f12.2)", cm(1), cm(10)
@@ -89,24 +84,19 @@ c      print "(2f12.2)", cm(1), cm(10)
      
       open (10, file='output_file.txt', status='unknown')
 
-      do while(u_x .gt. -0.95d0)
-        hsv(num_hv+1) = 1.0+u_x
-        hsv(num_hv+2) = u_y
+      do while(lambda .gt. 0.05d0)
+        hsv(num_hv+1) = lambda
         hsv(num_hv+5) = 1.0d0
         hsv(num_hv+9) = 1.0d0
 c
         call umat43(cm, eps, sig, epsp, hsv, dt1, etype,
      1   failel, elsiz, idele, reject)
 c     
-        u = u+0.001
-        u_x = -sin(alpha)*u
-        u_y = cos(alpha)*u
+        lambda = lambda - 0.0001
         sigma11_list(i) = sig(1)
-        u_list(i) = u_x
-
+        lambda_list(i) = lambda
 c        
-        write(10,*)"", u_x, sig(1), sig(2), sig(3), sig(4), sig(5), 
-     1   sig(6)
+        write(10,*)"", -(1.0-lambda), sig(1)
         i = i+1
 
       end do

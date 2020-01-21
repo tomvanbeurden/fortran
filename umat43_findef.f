@@ -154,7 +154,7 @@ c
 c     Initialize/set parameters:−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−
       num_hv = int(cm(19))! Number of history variables in use
       toll = 0.000001! Tolerance for yieldsurface
-      imax = 5000! Max. number of iterations for plastic multiplier
+      imax = 100! Max. number of iterations for plastic multiplier
       m = 1.0d0 ! Parameter in yield surface
       dlambda= 0.0d0 ! Plastic multiplier
       flow11 = 0.0d0
@@ -357,7 +357,7 @@ c       Store plastic strains in history variables:
 c
 c       Store non-local variables
         hsv(4)= var_nonloc
-        var_loc=epsp_tt
+        var_loc=epspp_tt
 c
 c       Store strains:
         hsv(5)= eps_lin(1)
@@ -367,7 +367,6 @@ c       Store strains:
         hsv(9)= eps_lin(5)
         hsv(10)= eps_lin(6)
         hsv(11)= ftrial
-        print "(3f12.2)", flow11, flow12, flow13
 c
 c!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 c EDIT: commented out this part below:
@@ -587,12 +586,8 @@ c       Root update with secant method:
         xr = 0.0d0
         if(abs(fimin-fi) .gt. 0.0d0)
      1    xr=xi-fi*(ximin-xi)/(fimin-fi)
-        print "(1f20.18)", abs(fimin-fi)
-c!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-c EDIT: Commented out:
-c        if(abs(fimin-fi) .eq. 0.0d0)
-c     1    print*, "ERROR_ Use_double_precision!"
-c!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        if(abs(fimin-fi) .eq. 0.0d0)
+     1    print*, "ERROR_ Use_double_precision!"
 c
         Test11= sig_trial(1)-xr*Ett*flow11
         Test12= sig_trial(4)-xr*Gtl*flow12

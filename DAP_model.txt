@@ -406,11 +406,13 @@ c     Softening/platuea stress region:
      1   **((yld0-s_avg)/(s_avg-yldcr))
 c     Densification region:
       elseif(epsp .gt. epsd) then
-        yld = yldcr + sign(yldcr,1.0)*hd*(epsp-epsd)**2.0d0
+        yld = yldcr + sign(1.0,yldcr)*hd*(epsp-epsd)**2.0d0
       endif
+
 c!!!!!!!!!!!!!!!!!!!!!!!
-c CHANGED dsign(yldcr,1.0d0) to sign(yldcr,1.0)
-c!!!!!!!!!!!!!!!!!!!!!!!
+c CHANGED dsign(yldcr,1.0d0) to sign(1.0,yldcr)
+c Because of double error and "sign(A,B) returns value of A with sign of B"
+c!!!!!!!!!!!!!!!!!!!!!!!     
       return
       end
 
