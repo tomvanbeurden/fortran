@@ -61,9 +61,9 @@ c     eps(5)= local yz strain INCREMENT
 c     eps(6)= local zx strain INCREMENT
 c
 c     Note :
-c     − eps is in strain Voigt notation, meaning that
+c     - eps is in strain Voigt notation, meaning that
 c     e.g. eps(4) is the sum of tensorial xy and yx strain increments.
-c     − eps is computed as true (logarithmic) strain
+c     - eps is computed as true (logarithmic) strain
 c
 c     sig(1)= local x stress
 c     sig(2)= local y stress
@@ -296,19 +296,23 @@ c
 c       Compute cauchy stress:
 c       (pay attention to material axis: 1=t,2=l,3=w,4=tl,5=lw,6=tw)
         deps = eps_lin−eps_old
-        sig_trail= sig+matmul(C4,deps)
+        sig_trial= sig+matmul(C4,deps)
 c
 c       Check for compressive stresses
         if(sig(1) .le. 0.0d0) then
 c
-c         Compute yyield stresses
-          call compute_yield_stress(epsp_tt, ytt, yld0tt, yldcrtt, epsd, hd, g)
-          call compute_yield_stress(epsp_tt, ytl, yld0tl, yldcrtl, epsd, hd, g)
-          call compute_yield_stress(epsp_tt, ytw, yld0tw, yldcrtw, epsd, hd, g)
+c         Compute yield stresses
+          call compute_yield_stress(epsp_tt, ytt, yld0tt, yldcrtt, 
+     1     epsd, hd, g)
+          call compute_yield_stress(epsp_tt, ytl, yld0tl, yldcrtl, 
+     2     epsd, hd, g)
+          call compute_yield_stress(epsp_tt, ytw, yld0tw, yldcrtw, 
+     3     epsd, hd, g)
+c
 c
 c         Check if yieldsurface boundary is exceeded
-          call compute_yield_coupled(ftrial,sigtrial(1),
-     1     sigtrial(4), sigtrial(6), m, ytt, ytl, ytw)
+          call compute_yield_coupled(ftrial,sig_trial(1),
+     1     sig_trial(4), sig_trial(6), m, ytt, ytl, ytw)
 c
           if (ftrial .gt. tol) then
 c
@@ -323,14 +327,14 @@ c           Update plastic strains
             epsp_tw = epsp_tw+abs(dlambda*flow13)
 c
 c           Update stresses for coupled plastic behavior:
-            deps(1) = deps(1) − dlambda*flow11
-            deps(4) = deps(4) − dlambda*flow12
-            deps(6) = deps(6) − dlambda*flow13
+            deps(1) = deps(1) - dlambda*flow11
+            deps(4) = deps(4) - dlambda*flow12
+            deps(6) = deps(6) - dlambda*flow13
 c
             sig = sig+matmul(C4,deps)
 c
           else
-c           Update stresses for eleastic compression:
+c           Update stresses for elastic compression:
             sig = sig_trial
           endif
 c
@@ -359,24 +363,66 @@ c       Store strains:
         hsv(10)= eps_lin(6)
         hsv(11)= ftrial
 c
+c!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+c EDIT: commented out this part below:
 c     Material model only available for solids:
-      else
-        cerdat(1)= etype
-        call lsmg(3,MSG_SOL+1151,ioall, ierdat,rerdat,cerdat,0)
-	    endif
+c      else
+c        cerdat(1)= etype
+c        call lsmg(3,MSG_SOL+1151,ioall, ierdat,rerdat,cerdat,0)
+c      endif
+c!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      endif
 c
       return
       end
 
 	
 	
+	
 c_________________________________________________________________________
-c	
+c 
+c                      YIELD STRESS COMUPTATION
+c_________________________________________________________________________
+
+      subroutine compute_yield_stress(epsp, yld, yld0, yldcr, 
+     1 epsd, hd, g)
+c *******************************************************************
+c | Edit by Dennis van Iersel, 27−09−2018                     |
+c | Eindhoven University of Technology & BMW Group            |
+c | Based on paper by Mohr & Dojojo 2003                      |
+c *******************************************************************
+c
+c     Routine computes the current yield stress according to
+c     accumulated plastic strain
+c
+      implicit none
+      real epsp, yld, yld0, yldcr, epsd, g, hd
+      real s_avg, sf, sc, lambdap, lambdac
+c
+c     Softening/platuea stress region:
+      if(epsp .ge. 0.0d0 .and. epsp .le. epsd) then
+        s_avg =(1.0d0-g)*yldcr+g*yld0
+        yld = yldcr+(yld0-yldcr)*((epsd-epsp)/(epsd))
+     1   **((yld0-s_avg)/(s_avg-yldcr))
+c     Densification region:
+      elseif(epsp .gt. epsd) then
+        yld = yldcr + sign(yldcr,1.0)*hd*(epsp-epsd)**2.0d0
+      endif
+c!!!!!!!!!!!!!!!!!!!!!!!
+c CHANGED dsign(yldcr,1.0d0) to sign(yldcr,1.0)
+c!!!!!!!!!!!!!!!!!!!!!!!
+      return
+      end
+
+
+
+c_________________________________________________________________________
+c 
 c                      YIELD LAW COMUPTATION
 c_________________________________________________________________________
 
-subroutine compute_yield_coupled(f,sig11,sig12,sig13,m,
-    1 ytt,ytl,ytw)
+      subroutine compute_yield_coupled(f,sig11,sig12,sig13,m,
+     1 ytt,ytl,ytw)
 
 c ******************************************************************
 c | Eit by Dennis van Iersel, 26-09-2018                      |
@@ -389,14 +435,15 @@ c
       real m, f , sig11, sig12, sig13, ytt, ytl, ytw
 c
       f =(sig11/ytt)+((sig12/ytl)**2.0d0+(sig13/ytw)**2.0d0)**(m*0.5d0)
-     1 −1.0d0
+     1 -1.0d0
 c
       return
       end
 	
 	
+  
 c_________________________________________________________________________
-c	
+c 
 c                       PLASTIC MULTIPLIER
 c_________________________________________________________________________
 
@@ -418,37 +465,37 @@ c
 c     Initiate parameters:
       fr = 100.0d0
       iter = 0
-      xi = 1.0d−5
+      xi = 0.00001d0
       ximin = 0.0d0
 c
 c     Secant method for determination of plastic multiplier:
       do while(abs(fr) .gt. tol .and. iter .lt. imax )
         iter = iter +1
 c
-        Test11= sig_trial(1)−ximin*Ett*flow11
-        Test12= sig_trial(4)−ximin*Gtl*flow12
-        Test13= sig_trial(6)−ximin*Gtw*flow13
+        Test11= sig_trial(1)-ximin*Ett*flow11
+        Test12= sig_trial(4)-ximin*Gtl*flow12
+        Test13= sig_trial(6)-ximin*Gtw*flow13
 c
         call compute_yield_coupled(fimin, Test11, Test12, Test13,m,
      1   ytt, ytl, ytw)
 c
-        Test11= sig_trial(1)−xi*Ett*flow11
-        Test12= sig_trial(4)−xi*Gtl*flow12
-        Test13= sig_trial(6)−xi*Gtw*flow13
+        Test11= sig_trial(1)-xi*Ett*flow11
+        Test12= sig_trial(4)-xi*Gtl*flow12
+        Test13= sig_trial(6)-xi*Gtw*flow13
 c
         call compute_yield_coupled(fi, Test11, Test12, Test13,m,
      1   ytt, ytl, ytw)
 c
-c       Root u p d a te w i t h s e c a n t method :
+c       Root update with secant method:
         xr = 0. 0 d0
-        if(abs(fimin−fi) .gt. 0.0d0)
-     1    xr=xi−fi*(ximin−xi)/(fimin−fi)
-        if(abs(fimin−fi) .eq. 0.0d0)
-1         print *, ”ERROR_ Use_double_precision!”
+        if(abs(fimin-fi) .gt. 0.0d0)
+     1    xr=xi-fi*(ximin-xi)/(fimin-fi)
+        if(abs(fimin-fi) .eq. 0.0d0)
+     1    print*, "ERROR_ Use_double_precision!"
 c
-        Test11= sig_trial(1)−xr*Ett*flow11
-        Test12= sig_trial(4)−xr*Gtl*flow12
-        Test13= sig_trial(6)−xr*Gtw*flow13
+        Test11= sig_trial(1)-xr*Ett*flow11
+        Test12= sig_trial(4)-xr*Gtl*flow12
+        Test13= sig_trial(6)-xr*Gtw*flow13
 c
         call compute_yield_coupled(fr, Test11, Test12, Test13,m,
      1   ytt, ytl, ytw)
@@ -460,9 +507,9 @@ c       Update for next secant step:
 c
 c     Error messages :
       if(iter .eq. imax)
-     1 print *, ”ERROR:Max._number_of_iterations_in_secant!”
+     1 print*, "ERROR:Max._number_of_iterations_in_secant!" 
       if(abs(fr) .gt. tol)
-     1 print * , ”ERROR:Secant_method_not_converged!”
+     1 print* , "ERROR:Secant_method_not_converged!"
 c
 c     Return plastic multiplier:
       dlambda=xr
@@ -472,7 +519,7 @@ c
 
 
 c_________________________________________________________________________
-c	
+c 
 c                       PLASTIC FLOW VECTOR
 c_________________________________________________________________________
 
@@ -490,7 +537,7 @@ c ******************************************************************
       real solu, soluInv, eval1, eval2, eval3, evec1, evec2, evec3
       real evecNorm, evecNormInv, tol
 c
-      tol = 1.0d−6
+      tol = 0.000001d0
 c
 c     Reduced stress tensor
       S11 = sig(1)
@@ -500,13 +547,13 @@ c     S22, S23 & S33 are zero because of the reduced tensor
 c
 C     Stress tensor invariants( simplified for zero components):
       rJ1=S11
-      rJ2=−S12**2−S13**2
+      rJ2=-S12**2-S13**2
 c     rJ3 =0.0 d0
 c
 c     Principal stresses (eigenvalues) of reduced stress tensor:
       eval1 =0.0d0
-      eval2 =.5d0*(rJ1+sqrt(rJ1**2.0d0−4.d0*rJ2))
-      eval3 =.5d0*(rJ1−sqrt(rJ1**2.0d0−4.d0*rJ2))
+      eval2 =.5d0*(rJ1+sqrt(rJ1**2.0d0-4.d0*rJ2))
+      eval3 =.5d0*(rJ1-sqrt(rJ1**2.0d0-4.d0*rJ2))
 c
 c     Identificaiton of principle compressive stress:
       solu =0.0d0
@@ -538,9 +585,12 @@ c     Determination of corresponding eigenvector:
       evec3 = evec3*evecNormInv
 c
 c     Compute plastic flowvector:
-      flow11 = −sign(1.d0,evec1)*evec1
-      flow12 = −sign(1.d0,evec1)*evec2
-      flow13 = −sign(1.d0,evec1)*evec3
+      flow11 = -sign(1.0,evec1)*evec1
+      flow12 = -sign(1.0,evec1)*evec2
+      flow13 = -sign(1.0,evec1)*evec3
+c!!!!!!!!!!!!!!!!!!!!!!!
+c CHANGED sign(1.d0,evec1) to sign(1.0,evec1)
+c!!!!!!!!!!!!!!!!!!!!!!!  
 c
       return
       end
@@ -626,7 +676,7 @@ c
 c       Compute Jacobian:
         J = matmul(dNdxi,xe)
         detJ(elemID) = (J(1,1)*J(2,2)*J(3,3)+J(1,2)*J(2,3)*(J(3,1)+
-     1                 J(1,3)*J(2,1)*J(3,2)−J(1,3)*J(2,2)*J(3,1)−
+     1                 J(1,3)*J(2,1)*J(3,2)−J(1,3)*J(2,2)*J(3,1)-
      2                 J(1,2)*J(2,1)*J(3,3)−J(1,1)*J(2,3)*J(3,2))*w
       enddo
 c
