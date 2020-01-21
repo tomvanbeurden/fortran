@@ -1,0 +1,4 @@
+gfortran test.f func.f
+
+gfortran test_dap.f umat43.f dsyevj3.f
+./a.out
