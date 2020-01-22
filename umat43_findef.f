@@ -145,7 +145,7 @@ c
       real dt1
       integer imax
       character*5 etype
-      logical failel, reject, OK_flag_M33inv
+      logical failel, reject
       integer*8 idele, num_hv, elsiz
 
       real tol, m, dlambda
@@ -159,8 +159,7 @@ c
       double precision c(3,3), u(3,3), V(3,3), D(3), C4(6,6)
       double precision F_old(3,3), F_new(3,3), F_dot(3,3), F_mid(3,3)
       double precision F_midinv(3,3), L_mid(3,3), D_mid(3,3),W_mid(3,3)
-      
-      print *, "Hello from subroutine"
+      logical :: SING_flag_M33inv = .false.
 c
 c     Initialize/set parameters:−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−
       num_hv = int(cm(19))! Number of history variables in use
@@ -211,7 +210,6 @@ c     Yield stresses:
       ytt=yld0tt
       ytl=yld0tl
       ytw=yld0tw
-      print*, "Doei"
 c
 c     Yield stress function shape
       hd=cm(18) ! Hardening modulus during densification 
@@ -259,10 +257,12 @@ c     Deformation gradient of current timestep
 
       F_mid = (F_new + F_old)*0.5d0 !deformation gradient at time t+1/2dt
       F_dot = (F_new - F_old)*1/dt1 !time derrivative of deformation gradient
-      call M33inv (F_mid, F_midinv, OK_flag_M33inv) 
- 
-      if ( .not. OK_flag_M33inv)
-     1 print*, "ERROR:_Deformation_gradient_singular!"
+      
+      call M33inv (F_mid, F_midinv, SING_flag_M33inv) 
+
+      if ( SING_flag_M33inv) then
+       print*, "ERROR_M33inv:_Singular_matrix!"
+      endif
 
       L_mid = matmul(F_dot,F_midinv) !velocity gradient at time t+1/2dt
       D_mid = 0.5d0*(L_mid+transpose(L_mid)) !Rate of deformation at time t+1/2dt
@@ -324,26 +324,14 @@ c         Check if yieldsurface boundary is exceeded
           call compute_yield_coupled(ftrial,sig_trial(1),
      1     sig_trial(4), sig_trial(6), m, ytt, ytl, ytw)
 
-          print*, "ftrial = ", ftrial
           if (ftrial .gt. tol) then
 c
 c           Compute plastic flow direction and step size
             call get_flowvector(sig_old,flow11,flow12,flow13)
-            call get_plasticmultiplier2(dlambda, sig_old, 
+            call get_plasticmultiplier(dlambda, sig_old, 
      1        F_old,F_new, F_mid, D_mid, C4, flow11, flow12, flow13,   
      2        dt1, ytt, ytl, ytw, m)
 c
-
-
-c           Update plastic strains
-            epsp_tt = epsp_tt+abs(dlambda*flow11)
-            epsp_tl = epsp_tl+abs(dlambda*flow12)
-            epsp_tw = epsp_tw+abs(dlambda*flow13)
-c
-c           Update stresses for coupled plastic behavior:
-            deps(1) = deps(1) - dlambda*flow11
-            deps(4) = deps(4) - dlambda*flow12
-            deps(6) = deps(6) - dlambda*flow13
 c
             call get_stressincrement(sig, sig_old, F_old, F_new, F_mid,
      1       D_mid, C4, dlambda, flow11, flow12, flow13, dt1)
@@ -379,11 +367,7 @@ c       Store strains:
         hsv(9)= eps_lin(5)
         hsv(10)= eps_lin(6)
         hsv(11)= ftrial
-c        print*, "diag of Fnew", F_new(1,1), F_new(2,2), F_new(3,3)
-c        print*, "diag of Fold", F_old(1,1), F_old(2,2), F_old(3,3)
-c        print*, "diag of Fdot", F_dot(1,1), F_dot(2,2), F_dot(3,3)
-c        print*, "diag of Dmid", D_mid(1,1), D_mid(2,2), D_mid(3,3)
-c        print*, "offdiag of Dmid", D_mid(1,2), D_mid(1,3), D_mid(2,3)
+
 
 
 c       Store old deformation gradient
@@ -396,7 +380,6 @@ c       Store old deformation gradient
         hsv(18)= hsv(num_hv+7) !F13_old (deformation gradient)
         hsv(19)= hsv(num_hv+8) !F23_old (deformation gradient)
         hsv(20)= hsv(num_hv+9) !F33_old (deformation gradient)
-        print*, " Hello"
 c
 c!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 c EDIT: commented out this part below:
@@ -407,8 +390,6 @@ c        call lsmg(3,MSG_SOL+1151,ioall, ierdat,rerdat,cerdat,0)
 c      endif
 c!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       endif
-c      print "(5f15.2)", cm(1), cm(10), dlambda, sig(1), ftrial
-c      print *, "Goodbye from subroutine"
 c
 c
       return
@@ -421,7 +402,7 @@ c                      STRESS INCREMENT
 c_________________________________________________________________________
 
       subroutine get_stressincrement(sig_new_v, sig_old_v, F_old,F_new, 
-     1  F_mid, D, C4,dlam, flow11, flow12, flow13, dt1)
+     1  F_mid, D, C4,dlambda, flow11, flow12, flow13, dt1)
       
       real sig_new_v(6), sig_old_v(6), dlambda, flow11, flow12, flow13
       double precision F_old(3,3), F_new(3,3), F_mid(3,3), D(3,3)
@@ -432,8 +413,7 @@ c_________________________________________________________________________
       double precision Deinv(3,3), Dp(3,3), De(3,3), De_bar(3,3) 
       double precision De_bar_v(6), CdoubleD_v(6), CdoubleD(3,3)
       double precision sig_new_bar(3,3), sig_new(3,3)
-      logical OK_flag_M33inv
-
+      logical :: SING_flag_M33inv = .false.
 
       sig_old(1,1) = sig_old_v(1)
       sig_old(2,2) = sig_old_v(2)
@@ -444,37 +424,44 @@ c_________________________________________________________________________
       sig_old(2,1) = sig_old(1,2)
       sig_old(3,1) = sig_old(1,3)
       sig_old(3,2) = sig_old(2,3)
-
-
-      
-      call M33inv(F_old, F_oldinv, OK_flag_M33inv) 
-      call M33inv(F_mid, F_midinv, OK_flag_M33inv)
-
+c
+      call M33inv(F_old, F_oldinv, SING_flag_M33inv)
+c      if ( SING_flag_M33inv) then
+c       print*, "ERROR_M33inv:_Singular_matrix!"
+c      endif
+c
+      call M33inv(F_mid, F_midinv, SING_flag_M33inv)
+c      if ( SING_flag_M33inv) then
+c       print*, "ERROR_M33inv:_Singular_matrix!"
+c      endif
+c
       sig_old_bar = matmul(matmul(F_oldinv,sig_old),
      1 transpose(F_oldinv)) 
-
-
-      
+c
       Dp = 0.0d0
       Dp(1,1) = dlambda*flow11
       Dp(1,2) = 0.5*dlambda*flow12
       Dp(1,3) = 0.5*dlambda*flow13
       Dp(2,1) = Dp(1,2)
       Dp(3,1) = Dp(1,3)
-      
+c
       De = D - Dp 
-
-      call M33inv(De, Deinv, OK_flag_M33inv) 
+c
+      call M33inv(De, Deinv, SING_flag_M33inv)
+      
+c      if ( SING_flag_M33inv) then
+c       print*, "ERROR_M33inv:_Singular_matrix!"
+c      endif
       De_bar = matmul(matmul(F_midinv,De),
      1 transpose(F_midinv))
-
+c
       De_bar_v(1) = De_bar(1,1)
       De_bar_v(2) = De_bar(2,2)
       De_bar_v(3) = De_bar(3,3)
       De_bar_v(4) = 2.0*De_bar(1,2)
       De_bar_v(5) = 2.0*De_bar(2,3)
       De_bar_v(6) = 2.0*De_bar(1,3)
-
+c
       CdoubleD_v = matmul(C4,De_bar_v)
       CdoubleD(1,1) = CdoubleD_v(1)
       CdoubleD(2,2) = CdoubleD_v(2)
@@ -485,20 +472,17 @@ c_________________________________________________________________________
       CdoubleD(2,1) = CdoubleD(1,2)
       CdoubleD(3,1) = CdoubleD(3,1)
       CdoubleD(3,2) = CdoubleD(2,3)
-
+c
       sig_new_bar = sig_old_bar + dt1*CdoubleD
       sig_new = matmul(matmul(F_new,sig_new_bar),transpose(F_new))
-
-c      print*, "Dp_v", Dp_v(1), Dp_v(2), Dp_v(3),Dp_v(4),Dp_v(5),Dp_v(6)
-
-
+c
       sig_new_v(1) = sig_new(1,1)
       sig_new_v(2) = sig_new(2,2)
       sig_new_v(3) = sig_new(3,3)
       sig_new_v(4) = sig_new(1,2)
       sig_new_v(5) = sig_new(2,3)
       sig_new_v(6) = sig_new(1,3)
-
+c
       end
 
 
@@ -562,12 +546,8 @@ c
 c
 
       f =(sig11/ytt)+((sig12/ytl)**2.0d0+(sig13/ytw)**2.0d0)**(m*0.5d0)
-     1 -1.0d0
+     1  -1.0d0
 c
-     
-
-
-
       return
       end
 
@@ -641,11 +621,13 @@ c     Determination of corresponding eigenvector:
       evec3 = evec3*evecNormInv
 c
 c     Compute plastic flowvector:
-      flow11 = -sign(1.0,evec1)*evec1
-      flow12 = -sign(1.0,evec1)*evec2
-      flow13 = -sign(1.0,evec1)*evec3
+      flow11 = -evec1
+      flow12 = -evec2
+      flow13 = -evec3
+
 c!!!!!!!!!!!!!!!!!!!!!!!
-c CHANGED sign(1.d0,evec1) to sign(1.0,evec1)
+c EDIT1: sign(1.d0,evec1) to sign(1.0,evec1)
+c EDIT2: deleted sign alltogether 
 c!!!!!!!!!!!!!!!!!!!!!!!  
 c
       return
@@ -656,10 +638,10 @@ c
 
 c_________________________________________________________________________
 c 
-c                       PLASTIC MULTIPLIER2
+c                       PLASTIC MULTIPLIER
 c_________________________________________________________________________
 
-      subroutine get_plasticmultiplier2(dlambda, sig_old_v, 
+      subroutine get_plasticmultiplier(dlambda, sig_old_v, 
      1  F_old,F_new, F_mid, D, C4, flow11, flow12, flow13, dt1, ytt, 
      2  ytl, ytw, m)
 
@@ -678,13 +660,13 @@ c ******************************************************************
       real sig_test(6)
       real xr, fr, xi, ximin, fi, fimin, tol
       integer iter, imax
-c
+
 c     Initiate parameters:
       fr = 100.0d0
       iter = 0
       xi = 0.00001d0
       ximin = 0.0d0
-      imax = 1000
+      imax = 5000
       tol = 0.00001d0
 c
 c     Secant method for determination of plastic multiplier:
@@ -707,15 +689,14 @@ c       Root update with secant method:
         xr = 0.0d0
         if(abs(fimin-fi) .gt. 0.0d0)
      1    xr=xi-fi*(ximin-xi)/(fimin-fi)
-c        print "(1f20.18)", abs(fimin-fi)
-c!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-c EDIT: Commented out:
-c        if(abs(fimin-fi) .eq. 0.0d0)
-c     1    print*, "ERROR_ Use_double_precision!"
-c!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+c
+c
+        if(abs(fimin-fi) .eq. 0.0d0)
+     1    print*, "ERROR_ Use_double_precision!"
 c
         call get_stressincrement(sig_test, sig_old_v, F_old,F_new, 
      1  F_mid, D, C4, xr, flow11, flow12, flow13, dt1) 
+
 c
         call compute_yield_coupled(fr, sig_test(1), sig_test(4), 
      1   sig_test(6),m, ytt, ytl, ytw)
@@ -737,91 +718,6 @@ c
       return
       end
 
-
-
-  
-c_________________________________________________________________________
-c 
-c                       PLASTIC MULTIPLIER
-c_________________________________________________________________________
-
-      subroutine get_plasticmultiplier(sig_trial,dlambda,tol,imax,
-     1 Ett, Gtl, Gtw, ytt, ytl, ytw ,m, flow11, flow12, flow13)
-c ******************************************************************
-c | Edit by Dennis van Iersel, 26−09−2018                     |
-c | Eindhoven University of Technology & BMW Group            |
-c | Based on implementation by Popp 2007                      |
-c | Based on paper by Mohr & Dojojo 2004                      |
-c ******************************************************************
-      implicit none
-      real sig_trial(6)
-      real m, Ett , Gtl, Gtw, ytt, ytl, ytw, flow11, flow12, flow13
-      real Test11, Test12, Test13
-      real xr, fr, xi, ximin, fi, fimin, dlambda, tol
-      integer iter, imax
-c
-c     Initiate parameters:
-      fr = 100.0d0
-      iter = 0
-      xi = 0.00001d0
-      ximin = 0.0d0
-c
-c     Secant method for determination of plastic multiplier:
-      do while(abs(fr) .gt. tol .and. iter .lt. imax )
-        iter = iter +1
-c
-        Test11= sig_trial(1)-ximin*Ett*flow11
-        Test12= sig_trial(4)-ximin*Gtl*flow12
-        Test13= sig_trial(6)-ximin*Gtw*flow13
-c
-        call compute_yield_coupled(fimin, Test11, Test12, Test13,m,
-     1   ytt, ytl, ytw)
-c
-        Test11= sig_trial(1)-xi*Ett*flow11
-        Test12= sig_trial(4)-xi*Gtl*flow12
-        Test13= sig_trial(6)-xi*Gtw*flow13
-c
-        call compute_yield_coupled(fi, Test11, Test12, Test13,m,
-     1   ytt, ytl, ytw)
-c
-c       Root update with secant method:
-        xr = 0.0d0
-        if(abs(fimin-fi) .gt. 0.0d0)
-     1    xr=xi-fi*(ximin-xi)/(fimin-fi)
-c        print "(1f20.18)", abs(fimin-fi)
-c!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-c EDIT: Commented out:
-c        if(abs(fimin-fi) .eq. 0.0d0)
-c     1    print*, "ERROR_ Use_double_precision!"
-c!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-c
-        Test11= sig_trial(1)-xr*Ett*flow11
-        Test12= sig_trial(4)-xr*Gtl*flow12
-        Test13= sig_trial(6)-xr*Gtw*flow13
-c
-        call compute_yield_coupled(fr, Test11, Test12, Test13,m,
-     1   ytt, ytl, ytw)
-c
-c       Update for next secant step:
-        ximin=xi
-        xi=xr
-      end do
-c
-c     Error messages :
-      if(iter .eq. imax)
-     1 print*, "ERROR:Max._number_of_iterations_in_secant!" 
-      if(abs(fr) .gt. tol)
-     1 print* , "ERROR:Secant_method_not_converged!"
-c
-c     Return plastic multiplier:
-      dlambda=xr
-c
-      return
-      end
-
-
-
-
 c_________________________________________________________________________
 c 
 c                       INVERSE 3x3
@@ -836,13 +732,13 @@ c_________________________________________________________________________
 !  Open source subroutine retreived from http://web.hku.hk/~gdli/UsefulFiles/matrix/m33inv_f90.txt
 !***********************************************************************************************************************************
 
-      SUBROUTINE M33INV (A, AINV, OK_FLAG)
+      SUBROUTINE M33INV (A, AINV, SING_FLAG)
 
       IMPLICIT NONE
 
-      DOUBLE PRECISION, DIMENSION(3,3), INTENT(IN)  :: A
-      DOUBLE PRECISION, DIMENSION(3,3), INTENT(OUT) :: AINV
-      LOGICAL, INTENT(OUT) :: OK_FLAG
+      DOUBLE PRECISION  A(3,3)
+      DOUBLE PRECISION  AINV(3,3)
+      LOGICAL SING_FLAG
 
       DOUBLE PRECISION, PARAMETER :: EPS = 1.0D-10
       DOUBLE PRECISION :: DET
@@ -857,7 +753,7 @@ c_________________________________________________________________________
 
       IF (ABS(DET) .LE. EPS) THEN
          AINV = 0.0D0
-         OK_FLAG = .FALSE.
+         SING_FLAG = .TRUE.
          RETURN
       END IF
 
@@ -873,7 +769,7 @@ c_________________________________________________________________________
 
       AINV = TRANSPOSE(COFACTOR) / DET
 
-      OK_FLAG = .TRUE.
+      SING_FLAG = .FALSE.
 
       RETURN
 

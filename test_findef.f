@@ -80,7 +80,7 @@ c      double precision :: cm(23) = 0.0d0
       cm(23)= 0.33d0
       
       pi = 4.d0*datan(1.d0)
-      alpha = pi/180*90
+      alpha = pi/180.0*90.0
       num_hv = int(cm(19))! Number of history variables in use
 
       hsv(12) = 1.0d0
@@ -95,7 +95,7 @@ c      print "(2f12.2)", cm(1), cm(10)
       open (10, file='output_file.txt', status='unknown')
 
 
-      do while(u_x .gt. -0.010d0)
+      do while(u_x .gt. -0.950d0)
         hsv(num_hv+1) = 1.0+u_x
         hsv(num_hv+2) = u_y
         hsv(num_hv+5) = 1.0d0
@@ -107,7 +107,7 @@ c
         write(10,*)"", u_x, sig(1), sig(2), sig(3), sig(4), sig(5), 
      1   sig(6)
 
-        u = u+0.000002
+        u = u+0.0002
         u_x = -sin(alpha)*u
         u_y = cos(alpha)*u
         sigma11_list(i) = sig(1)
