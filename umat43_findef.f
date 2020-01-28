@@ -168,7 +168,17 @@ c
       double precision c(3,3), u(3,3), V(3,3), D(3), C4(6,6)
       double precision F_old(3,3), F_new(3,3), F_dot(3,3), F_mid(3,3)
       double precision F_midinv(3,3), L_mid(3,3), D_mid(3,3),W_mid(3,3)
-      double precision Fp_old(3,3), Fp_new(3,3), Dp(3,3)
+      double precision Fp_old(3,3), Fp_new(3,3), Dp(3,3), deltaLp(3,3)
+      double precision zeros(3,3)
+
+c     for eigproblem Fp
+      double precision wr(3), wi(3), zr(3,3),zi(3,3)
+      double precision fv1(3),fv2(3),fv3(3)
+      integer ierr
+      complex*16 :: eigval(3), eigval_diag_exp(3,3), eigvec(3,3)
+      complex*16 :: eigvec_inv(3,3)
+      double precision dFp(3,3), dFp_i(3,3), Fp_warning
+
       logical :: SING_flag_M33inv = .false.
 c
 c     Initialize/set parameters:−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−
@@ -288,9 +298,7 @@ c     Deformation gradient of current timestep
       L_mid = matmul(F_dot,F_midinv) !velocity gradient at time t+1/2dt
       D_mid = 0.5d0*(L_mid+transpose(L_mid)) !Rate of deformation at time t+1/2dt
       W_mid = 0.5d0*(L_mid-transpose(L_mid)) !Spin tensor at time t+1/2dt
-c      print*, "W11, W12, W13, W21, W22, W23, W31, W32, W33", 
-c     1  W_mid(1,1), W_mid(1,2), W_mid(1,3), W_mid(2,1), W_mid(2,2),
-c     2  W_mid(2,3),W_mid(3,1), W_mid(3,2), W_mid(3,3)
+
 c
 c     Compute material properties: −−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−
 c
@@ -364,7 +372,40 @@ c
 	    Dp(1,3) = 0.5*dlambda*flow13
 	    Dp(2,1) = Dp(1,2)
             Dp(3,1) = Dp(1,3)
-            Fp_new = Fp_old
+            deltaLp = dt1*(Dp+W_mid)
+            zeros = 0.0d0
+
+
+c           Complex eigensolver (open source tool EISPACK)
+c           call cg(nm,n,Fp_r,Fp_c,wr,wi,matz,zr,zi,fv1,fv2,fv3,ierr)
+            call cg(3,3,deltaLp,zeros,wr, wi, 1,zr,zi,
+     1       fv1,fv2,fv3,ierr)
+
+            eigvec = cmplx(zr,zi)
+            eigval = cmplx(wr,wi)
+            eigval_diag_exp = 0.0d0
+            eigval_diag_exp(1,1) = exp(eigval(1))
+            eigval_diag_exp(2,2) = exp(eigval(2))
+            eigval_diag_exp(3,3) = exp(eigval(3))
+
+            call M33INV_comp (eigvec, eigvec_inv,  SING_flag_M33inv)
+
+            dFp_i = aimag(matmul(eigvec,
+     1        matmul(eigval_diag_exp,eigvec_inv)))
+            
+            Fp_warning=abs(dFp_i(1,1))+abs(dFp_i(1,2))+abs(dFp_i(1,3))
+     1       +abs(dFp_i(2,1))+abs(dFp_i(2,2))+abs(dFp_i(2,3))
+     1       +abs(dFp_i(3,1))+abs(dFp_i(3,2))+abs(dFp_i(3,3))
+
+            if (Fp_warning .gt. 0.000001)
+     1       print*,"warning: complex Fp", Fp_warning
+
+
+            dFp = real(matmul(eigvec,
+     1        matmul(eigval_diag_exp,eigvec_inv)))
+            Fp_new = matmul(dFp,Fp_old)
+            
+c            Fp_new = Fp_old
 c
           else
 c           Update stresses for elastic compression:
@@ -422,7 +463,14 @@ c       Store plastic deformation gradient
         hsv(29)= Fp_new(3,3) !Fp33_old (new pl deformation gradient)
 c
 
-
+c        print*,"F_new", hsv(num_hv+1),hsv(num_hv+4),hsv(num_hv+7)
+c        print*,"F_new", hsv(num_hv+2),hsv(num_hv+5),hsv(num_hv+8)
+c        print*,"F_new", hsv(num_hv+3),hsv(num_hv+6),hsv(num_hv+9)
+c
+c        print*,"Fp_new", Fp_new(1,1), Fp_new(1,2), Fp_new(1,3)
+c        print*,"Fp_new", Fp_new(2,1), Fp_new(2,2), Fp_new(2,3)
+c        print*,"Fp_new", Fp_new(3,1), Fp_new(3,2), Fp_new(3,3)
+        
 c!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 c EDIT: commented out this part below:
 c     Material model only available for solids:
@@ -816,3 +864,61 @@ c_________________________________________________________________________
       RETURN
 
       END SUBROUTINE M33INV
+
+
+c_________________________________________________________________________
+c 
+c                       COMPLEX INVERSE 3x3
+c_________________________________________________________________________
+
+!***********************************************************************************************************************************
+!  M33INV  -  Compute the inverse of a 3x3 matrix.
+!
+!  A       = input 3x3 matrix to be inverted
+!  AINV    = output 3x3 inverse of matrix A
+!  OK_FLAG = (output) .TRUE. if the input matrix could be inverted, and .FALSE. if the input matrix is singular.
+!  Open source subroutine retreived from http://web.hku.hk/~gdli/UsefulFiles/matrix/m33inv_f90.txt
+!***********************************************************************************************************************************
+
+      SUBROUTINE M33INV_comp (A, AINV, SING_FLAG)
+
+      IMPLICIT NONE
+
+      complex*16  A(3,3)
+      complex*16  AINV(3,3)
+      LOGICAL SING_FLAG
+
+      DOUBLE PRECISION, PARAMETER :: EPS = 1.0D-10
+      complex*16 :: DET
+      complex*16, DIMENSION(3,3) :: COFACTOR
+
+      DET =   A(1,1)*A(2,2)*A(3,3)  
+     1       - A(1,1)*A(2,3)*A(3,2)  
+     2       - A(1,2)*A(2,1)*A(3,3)  
+     3       + A(1,2)*A(2,3)*A(3,1)  
+     4       + A(1,3)*A(2,1)*A(3,2)  
+     5       - A(1,3)*A(2,2)*A(3,1)
+
+      IF (ABS(DET) .LE. EPS) THEN
+         AINV = 0.0D0
+         SING_FLAG = .TRUE.
+         RETURN
+      END IF
+
+      COFACTOR(1,1) = +(A(2,2)*A(3,3)-A(2,3)*A(3,2))
+      COFACTOR(1,2) = -(A(2,1)*A(3,3)-A(2,3)*A(3,1))
+      COFACTOR(1,3) = +(A(2,1)*A(3,2)-A(2,2)*A(3,1))
+      COFACTOR(2,1) = -(A(1,2)*A(3,3)-A(1,3)*A(3,2))
+      COFACTOR(2,2) = +(A(1,1)*A(3,3)-A(1,3)*A(3,1))
+      COFACTOR(2,3) = -(A(1,1)*A(3,2)-A(1,2)*A(3,1))
+      COFACTOR(3,1) = +(A(1,2)*A(2,3)-A(1,3)*A(2,2))
+      COFACTOR(3,2) = -(A(1,1)*A(2,3)-A(1,3)*A(2,1))
+      COFACTOR(3,3) = +(A(1,1)*A(2,2)-A(1,2)*A(2,1))
+
+      AINV = TRANSPOSE(COFACTOR) / DET
+
+      SING_FLAG = .FALSE.
+
+      RETURN
+
+      END SUBROUTINE M33INV_comp

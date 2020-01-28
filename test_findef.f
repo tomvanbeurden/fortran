@@ -96,7 +96,7 @@ c     Open file to write output
       open (10, file='output_file.txt', status='unknown')
 
 c     Loop until the displacement in x direction reaches a certain value. In the loop the new deformation gradient is prescribed. The new deformation gradient is in this case stored in the history array from hsv(num_hv+1) to hsv(num_hv+9). I apply compression under an angle wrt the 11 direction, so the F11 component and F21 component change. 
-      do while(u_x .gt. -0.830d0)
+      do while(u_x .gt. -0.85d0)
         hsv(num_hv+1) = 1.0+u_x
         hsv(num_hv+2) = u_y
         hsv(num_hv+5) = 1.0d0
@@ -116,6 +116,9 @@ c       Displacement increment
         u_y = cos(alpha)*u
 
 c        
+
+
+        
 
       end do
 

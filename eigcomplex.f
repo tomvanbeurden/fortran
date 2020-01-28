@@ -2,9 +2,11 @@ c     Open source subroutines (EISPACK) for solving complex general
 c     eigenvalue problems. Obtained from https://people.sc.fsu.edu/~jburkardt/f_src/eispack/eispack.html
 
 
-c     Combined all subroutines in this file eigcompled.f:
+c     Combined all subroutines in this file "eigcompled.f":
 c     Main subroutine: cg
-c     Additional subroutines:       
+c     Additional subroutines: cbabk2.f, cbal.f cdiv.f comqr.f, comqr2.f, corth.f, csroot.f, pythag.f
+
+c     Comments in subroutine cg specify how program should be used
 
 
 
