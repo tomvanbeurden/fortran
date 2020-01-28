@@ -2,7 +2,7 @@ C----|--1---------2---------3---------4---------5---------6---------7-|
 C     Tom van Beurden (28-01-2019)
 C     Test file to run eigval solver
 C
-C     To compile  : gfortran eigtest.f eigcomplex.f
+C     To compile  : gfortran eigtest.f eigcomplex.f umat43_findef.f
 C     To run      : ./a.out
 
 
