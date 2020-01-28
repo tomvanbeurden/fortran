@@ -1,4 +1,6 @@
 C----|--1---------2---------3---------4---------5---------6---------7-|
+C     Tom van Beurden (27-01-2019)
+C     Test file to run umat file externally.
      
       PROGRAM TEST
 
@@ -31,30 +33,26 @@ c     cm(23)= Poisson’s ratio on tw−axis
 
 
       IMPLICIT NONE
-c      double precision :: cm(23) = 0.0d0
-      real :: cm(23) = 0.0d0
-      real :: eps(6) = 0.0d0
-      real :: sig(6) = 0.0d0
-      real :: epsp(3) = 0.0d0
-      real :: hsv(29) = 0.0d0
-      real :: dt1 = 0.1d0
-      integer :: nnpcrv(17) = -1
-      integer :: imax = 0
-      character*5 :: etype = "solid" 
-      logical :: failel = .false.
-      logical :: reject = .false.
-      integer :: idele = -1
-      integer :: num_hv
-      integer :: elsiz = -1
+      real :: cm(23) = 0.0d0 !Initiate material parameters
+      real :: eps(6) = 0.0d0 !Initiate strain 
+      real :: sig(6) = 0.0d0 !Initiate stress
+      real :: epsp(3) = 0.0d0 !Initiate plastic strain
+      real :: hsv(29) = 0.0d0 !Initiate history array
+      real :: dt1 = 0.1d0     !Define timestep
+      integer :: nnpcrv(17) = -1  ! ??-> LSDyna parameter, req. input, unused
+      character*5 :: etype = "solid" !Element type
+      logical :: failel = .false.  ! ??-> LSDyna parameter, req. input, unused
+      logical :: reject = .false.  ! ??-> LSDyna parameter, req. input, unused
+      integer :: idele = -1        ! ??-> LSDyna parameter, req. input, unused
+      integer :: num_hv       !number of history variables in use
+      integer :: elsiz = -1   !unused parameter
       real :: pi
-      real :: alpha
-      real :: u = 0.0d0, u_x = 0.0d0, u_y = 0.0d0
-      real :: u_list (100000)
-      real :: sigma11_list(100000)
+      real :: alpha	     !Loading angle
+      real :: alpha_deg = 45.0d0 !Loading angle in degrees
+      real :: u = 0.0d0, u_x = 0.0d0, u_y = 0.0d0 !define displacement components
 
-      integer :: i=1
-      print *, "Hello from main" 
-
+ 
+c     Define parameters:
       cm(1)= 110000000.0d0
       cm(2)= 120000000.0d0
       cm(3)= 150000000.0d0
@@ -79,43 +77,40 @@ c      double precision :: cm(23) = 0.0d0
       cm(22)= 0.000088d0
       cm(23)= 0.33d0
       
+
       pi = 4.d0*datan(1.d0)
-      alpha = pi/180.0*90.0
+      alpha = pi/180.0*alpha_deg
       num_hv = int(cm(19))! Number of history variables in use
 
+c     For my material model I use the deformation gradient of the prev. timestep. For this reason the old deformationg gradient is stored in the history array, and the diagonal components need to be initiated to 1.0.
       hsv(12) = 1.0d0
       hsv(16) = 1.0d0
       hsv(20) = 1.0d0
 
-
-
-c      print "(2f12.2)", cm(1), cm(10)
-      
-
+c     Open file to write output
       open (10, file='output_file.txt', status='unknown')
 
-
-      do while(u_x .gt. -0.950d0)
+c     Loop until the displacement in x direction reaches a certain value. In the loop the new deformation gradient is prescribed. The new deformation gradient is in this case stored in the history array from hsv(num_hv+1) to hsv(num_hv+9). I apply compression under an angle wrt the 11 direction, so the F11 component and F21 component change. 
+      do while(u_x .gt. -0.830d0)
         hsv(num_hv+1) = 1.0+u_x
         hsv(num_hv+2) = u_y
         hsv(num_hv+5) = 1.0d0
         hsv(num_hv+9) = 1.0d0
 c
+c       call material model:
         call umat43(cm, eps, sig, epsp, hsv, dt1, etype,
      1   failel, elsiz, idele, reject)
 c     
+c       write output
         write(10,*)"", u_x, sig(1), sig(2), sig(3), sig(4), sig(5), 
      1   sig(6)
 
+c       Displacement increment
         u = u+0.0002
         u_x = -sin(alpha)*u
         u_y = cos(alpha)*u
-        sigma11_list(i) = sig(1)
-        u_list(i) = u_x
 
 c        
-        
-        i = i+1
 
       end do
 

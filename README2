@@ -1,0 +1,22 @@
+
+1. TO RUN umat43_findef.f, use the commands: 
+gfortran test_findef.f umat43_findef.f
+./a.out
+
+
+2. TO PLOT force displacement in 11-direction, use the commands:
+gnuplot
+plot "output_file.txt" using 1:2 with lines
+
+
+
+Notes:
+- The file "umat43_findef.f" contains the material model with some extra subroutines that are necesarry to run in. In the test file ("test_findef.f") I prescribe the deformation gradient such that it follows the deformation that I want. Normally the deformation gradient is of course provided to the umat file internally by LSDYNA. This test file provides a simulation with the material model in a single integration point.
+
+- I deleted some inputs that the umat file needs (which are normally provided by LS-DYNA) and for some of those inputs I provided values.
+
+- I prescribe a compression onder an angle alpha w.r.t. the 11 direction. so the deformation gradient becomes F = [1-u_x 0 0; u_y 1 0; 0 0 1], with u_x and u_y the displacements in x and y respectively. Each increment the u_x and u_y change. In my case I wanted the simulation to be terminated when u_x reaches a certain value.
+
+- In approx. line 27 to line 103 of "umat43_findef.f" there is a commented section which informs about what data is saved in the cm (material parameters) and the hsv (history parameters) arrays. 
+
+- The material model is an addaptation of the material model of Dennis van Iersel, and it is a preliminary version.

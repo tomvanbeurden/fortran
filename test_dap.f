@@ -2,37 +2,10 @@ C----|--1---------2---------3---------4---------5---------6---------7-|
      
       PROGRAM TEST
 
-c     cm(1)= bulk modulus
-c     cm(2)= shear modulus
-c     cm(3)=Young’s modulus along tt−axis
-c     cm(4)=Young’s modulus along ll−axis
-c     cm(5)=Young’s modulus along ww−axis
-c     cm(6)=Young’s modulus along tl−axis
-c     cm(7)=Young’s modulus along lw−axis
-c     cm(8)=Young’s modulus along tw−axis
-c     cm(9 )= Initial Yield stress tt−axis
-c     cm(10)= Initial Yield stress tl−axis
-c     cm(11)= Initial Yield stress tw−axis
-c     cm(12)= Plateau stress tt−axis
-c     cm(13)= Plateau stress tl−axis
-c     cm(14)= Plateau stress tw−axis
-c     cm(15)= Non−local influence radius
-c     cm(16)= Element size along tt−axis
-c     cm(17)= Densification strain
-c     cm(18)= Hardening modulus
-c     cm(19)= Number of utilized history variables
-c     cm(20)= Softening shape parameter
-c     cm(21)= Poisson’s ratio on tl−axis
-c     cm(22)= Poisson’s ratio on lw−axis
-c     cm(23)= Poisson’s ratio on tw−axis
-
-
-      
 
 
       IMPLICIT NONE
-c      double precision :: cm(23) = 0.0d0
-      real :: cm(23) = 0.0d0
+      real :: cm(23) = 0.0d0 
       real :: eps(6) = 0.0d0
       real :: sig(6) = 0.0d0
       real :: epsp(3) = 0.0d0
@@ -53,7 +26,6 @@ c      double precision :: cm(23) = 0.0d0
       real :: sigma11_list(100000)
 
       integer :: i=1
-      print *, "Hello from main" 
 
       cm(1)= 110000000.0d0
       cm(2)= 120000000.0d0
@@ -73,7 +45,7 @@ c      double precision :: cm(23) = 0.0d0
       cm(16)= 0.1d0
       cm(17)= 0.8d0
       cm(18)= 500000000.0d0
-      cm(19)= 20.0d0
+      cm(19)= 20.0d0 !number of history variables used
       cm(20)= 0.2d0
       cm(21)= 0.33d0
       cm(22)= 0.000088d0
@@ -81,10 +53,8 @@ c      double precision :: cm(23) = 0.0d0
       
       pi = 4.d0*datan(1.d0)
       alpha = pi/180*70
-      num_hv = int(cm(19))! Number of history variables in use
-
-c      print "(2f12.2)", cm(1), cm(10)
       
+      num_hv = int(cm(19))! Number of history variables in use      
 
      
       open (10, file='output_file.txt', status='unknown')

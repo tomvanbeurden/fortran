@@ -149,8 +149,7 @@ c
       real var_nonloc, var_loc, dnl, lr, le, eps_star
       double precision c(3,3), u(3,3), V(3,3), D(3), C4(6,6)
       
-c      print *, "Hello from subroutine"
-c
+
 c     Initialize/set parameters:−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−
       num_hv = int(cm(19))! Number of history variables in use
       toll = 0.000001! Tolerance for yieldsurface
@@ -367,7 +366,7 @@ c       Store strains:
         hsv(9)= eps_lin(5)
         hsv(10)= eps_lin(6)
         hsv(11)= ftrial
-        print "(3f12.2)", flow11, flow12, flow13
+        
 c
 c!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 c EDIT: commented out this part below:
@@ -378,8 +377,6 @@ c        call lsmg(3,MSG_SOL+1151,ioall, ierdat,rerdat,cerdat,0)
 c      endif
 c!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       endif
-c      print "(5f15.2)", cm(1), cm(10), dlambda, sig(1), ftrial
-c      print *, "Goodbye from subroutine"
 c
 c
       return
@@ -587,7 +584,7 @@ c       Root update with secant method:
         xr = 0.0d0
         if(abs(fimin-fi) .gt. 0.0d0)
      1    xr=xi-fi*(ximin-xi)/(fimin-fi)
-        print "(1f20.18)", abs(fimin-fi)
+
 c!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 c EDIT: Commented out:
 c        if(abs(fimin-fi) .eq. 0.0d0)

@@ -1,5 +1,5 @@
 C----|--1---------2---------3---------4---------5---------6---------7-|
-
+C     Tom van Beurden (27-01-2019)
 
 c_________________________________________________________________________  
 c 
@@ -267,7 +267,9 @@ c     Deformation gradient of current timestep
       L_mid = matmul(F_dot,F_midinv) !velocity gradient at time t+1/2dt
       D_mid = 0.5d0*(L_mid+transpose(L_mid)) !Rate of deformation at time t+1/2dt
       W_mid = 0.5d0*(L_mid-transpose(L_mid)) !Spin tensor at time t+1/2dt
-
+c      print*, "W11, W12, W13, W21, W22, W23, W31, W32, W33", 
+c     1  W_mid(1,1), W_mid(1,2), W_mid(1,3), W_mid(2,1), W_mid(2,2),
+c     2  W_mid(2,3),W_mid(3,1), W_mid(3,2), W_mid(3,3)
 c
 c     Compute material properties: −−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−
 c
