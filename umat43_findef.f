@@ -90,6 +90,15 @@ c     hsv(17)=F32 (old deformation gradient)
 c     hsv(18)=F13 (old deformation gradient)
 c     hsv(19)=F23 (old deformation gradient)
 c     hsv(20)=F33 (old deformation gradient)
+c     hsv(21)=Fp11 (plastic deformation gradient)
+c     hsv(22)=Fp21 (plastic deformation gradient)
+c     hsv(23)=Fp31 (plastic deformation gradient)
+c     hsv(24)=Fp12 (plastic deformation gradient)
+c     hsv(25)=Fp22 (plastic deformation gradient)
+c     hsv(26)=Fp32 (plastic deformation gradient)
+c     hsv(27)=Fp13 (plastic deformation gradient)
+c     hsv(28)=Fp23 (plastic deformation gradient)
+c     hsv(29)=Fp33 (plastic deformation gradient)
 c         .
 c     hsv(nhv)=nhvth history variable
 c     hsv(nhv+1)=F11 (deformation gradient)
@@ -159,6 +168,7 @@ c
       double precision c(3,3), u(3,3), V(3,3), D(3), C4(6,6)
       double precision F_old(3,3), F_new(3,3), F_dot(3,3), F_mid(3,3)
       double precision F_midinv(3,3), L_mid(3,3), D_mid(3,3),W_mid(3,3)
+      double precision Fp_old(3,3), Fp_new(3,3), Dp(3,3)
       logical :: SING_flag_M33inv = .false.
 c
 c     Initialize/set parameters:−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−
@@ -242,6 +252,17 @@ c     Deformation gradient of previous timestep
       F_old(1,3)= hsv(18)! F13 (old deformation gradient)
       F_old(2,3)= hsv(19)! F23 (old deformation gradient)
       F_old(3,3)= hsv(20)! F33 (old deformation gradient)
+
+c     Plastic deformation gradient of previous timestep
+      Fp_old(1,1)= hsv(21)! Fp11 (old plastic deformation gradient)
+      Fp_old(2,1)= hsv(22)! Fp21 (old plastic deformation gradient)
+      Fp_old(3,1)= hsv(23)! Fp31 (old plastic deformation gradient)
+      Fp_old(1,2)= hsv(24)! Fp12 (old plastic deformation gradient)
+      Fp_old(2,2)= hsv(25)! Fp22 (old plastic deformation gradient)
+      Fp_old(3,2)= hsv(26)! Fp32 (old plastic deformation gradient)
+      Fp_old(1,3)= hsv(27)! Fp13 (old plastic deformation gradient)
+      Fp_old(2,3)= hsv(28)! Fp23 (old plastic deformation gradient)
+      Fp_old(3,3)= hsv(29)! Fp33 (old plastic deformation gradient)
 
 c     Deformation gradient of current timestep
       F_new(1,1)= hsv(num_hv+1)! F11 (old deformation gradient)
@@ -337,17 +358,24 @@ c
 c
             call get_stressincrement(sig, sig_old, F_old, F_new, F_mid,
      1       D_mid, C4, dlambda, flow11, flow12, flow13, dt1)
-            
+	    Dp = 0.0d0
+	    Dp(1,1) = dlambda*flow11
+	    Dp(1,2) = 0.5*dlambda*flow12
+	    Dp(1,3) = 0.5*dlambda*flow13
+	    Dp(2,1) = Dp(1,2)
+            Dp(3,1) = Dp(1,3)
+            Fp_new = Fp_old
 c
           else
 c           Update stresses for elastic compression:
             sig = sig_trial
+            Fp_new = Fp_old
           endif
         else
 c         Update stresses for tensile case (linearelastic):
           sig = sig_trial
+          Fp_new = Fp_old
         endif
-
 c
 c       Store relevant paremeters: −−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−
 c
@@ -369,9 +397,8 @@ c       Store strains:
         hsv(9)= eps_lin(5)
         hsv(10)= eps_lin(6)
         hsv(11)= ftrial
-
-
-
+c
+c
 c       Store old deformation gradient
         hsv(12)= hsv(num_hv+1) !F11_old (deformation gradient)
         hsv(13)= hsv(num_hv+2) !F21_old (deformation gradient)
@@ -382,7 +409,20 @@ c       Store old deformation gradient
         hsv(18)= hsv(num_hv+7) !F13_old (deformation gradient)
         hsv(19)= hsv(num_hv+8) !F23_old (deformation gradient)
         hsv(20)= hsv(num_hv+9) !F33_old (deformation gradient)
+
+c       Store plastic deformation gradient
+        hsv(21)= Fp_new(1,1) !Fp11_old (new pl deformation gradient)
+        hsv(22)= Fp_new(2,1) !Fp21_old (new pl deformation gradient)
+        hsv(23)= Fp_new(3,1) !Fp31_old (new pl deformation gradient)
+        hsv(24)= Fp_new(1,2) !Fp12_old (new pl deformation gradient)
+        hsv(25)= Fp_new(2,2) !Fp22_old (new pl deformation gradient)
+        hsv(26)= Fp_new(3,2) !Fp32_old (new pl deformation gradient)
+        hsv(27)= Fp_new(1,3) !Fp13_old (new pl deformation gradient)
+        hsv(28)= Fp_new(2,3) !Fp23_old (new pl deformation gradient)
+        hsv(29)= Fp_new(3,3) !Fp33_old (new pl deformation gradient)
 c
+
+
 c!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 c EDIT: commented out this part below:
 c     Material model only available for solids:

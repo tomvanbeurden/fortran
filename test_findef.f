@@ -37,7 +37,7 @@ c     cm(23)= Poisson’s ratio on tw−axis
       real :: eps(6) = 0.0d0 !Initiate strain 
       real :: sig(6) = 0.0d0 !Initiate stress
       real :: epsp(3) = 0.0d0 !Initiate plastic strain
-      real :: hsv(29) = 0.0d0 !Initiate history array
+      real :: hsv(38) = 0.0d0 !Initiate history array
       real :: dt1 = 0.1d0     !Define timestep
       integer :: nnpcrv(17) = -1  ! ??-> LSDyna parameter, req. input, unused
       character*5 :: etype = "solid" !Element type
@@ -48,7 +48,7 @@ c     cm(23)= Poisson’s ratio on tw−axis
       integer :: elsiz = -1   !unused parameter
       real :: pi
       real :: alpha	     !Loading angle
-      real :: alpha_deg = 45.0d0 !Loading angle in degrees
+      real :: alpha_deg = 45.5d0 !Loading angle in degrees
       real :: u = 0.0d0, u_x = 0.0d0, u_y = 0.0d0 !define displacement components
 
  
@@ -71,7 +71,7 @@ c     Define parameters:
       cm(16)= 0.1d0
       cm(17)= 0.8d0
       cm(18)= 500000000.0d0
-      cm(19)= 20.0d0
+      cm(19)= 29.0d0
       cm(20)= 0.2d0
       cm(21)= 0.33d0
       cm(22)= 0.000088d0
@@ -86,6 +86,11 @@ c     For my material model I use the deformation gradient of the prev. timestep
       hsv(12) = 1.0d0
       hsv(16) = 1.0d0
       hsv(20) = 1.0d0
+
+c     I also keep track of the plastic deformation gradient, initiating to unity:
+      hsv(21) = 1.0d0
+      hsv(25) = 1.0d0
+      hsv(29) = 1.0d0
 
 c     Open file to write output
       open (10, file='output_file.txt', status='unknown')
