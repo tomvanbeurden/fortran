@@ -34,10 +34,10 @@ c     cm(23)= Poisson’s ratio on tw−axis
 
       IMPLICIT NONE
       real :: cm(23) = 0.0d0 !Initiate material parameters
-      real :: eps(6) = 0.0d0 !Initiate strain 
+c      real :: eps(6) = 0.0d0 !Initiate strain 
       real :: sig(6) = 0.0d0 !Initiate stress
       real :: epsp(3) = 0.0d0 !Initiate plastic strain
-      real :: hsv(38) = 0.0d0 !Initiate history array
+      real :: hsv(30) = 0.0d0 !Initiate history array
       real :: dt1 = 0.1d0     !Define timestep
       integer :: nnpcrv(17) = -1  ! ??-> LSDyna parameter, req. input, unused
       character*5 :: etype = "solid" !Element type
@@ -71,7 +71,7 @@ c     Define parameters:
       cm(16)= 0.1d0
       cm(17)= 0.8d0
       cm(18)= 500000000.0d0
-      cm(19)= 29.0d0
+      cm(19)= 21.0d0
       cm(20)= 0.2d0
       cm(21)= 0.33d0
       cm(22)= 0.000088d0
@@ -83,14 +83,14 @@ c     Define parameters:
       num_hv = int(cm(19))! Number of history variables in use
 
 c     For my material model I use the deformation gradient of the prev. timestep. For this reason the old deformationg gradient is stored in the history array, and the diagonal components need to be initiated to 1.0.
+      hsv(4) = 1.0d0
+      hsv(8) = 1.0d0
       hsv(12) = 1.0d0
-      hsv(16) = 1.0d0
-      hsv(20) = 1.0d0
 
 c     I also keep track of the plastic deformation gradient, initiating to unity:
+      hsv(13) = 1.0d0
+      hsv(17) = 1.0d0
       hsv(21) = 1.0d0
-      hsv(25) = 1.0d0
-      hsv(29) = 1.0d0
 
 c     Open file to write output
       open (10, file='output_file.txt', status='unknown')
@@ -103,7 +103,7 @@ c     Loop until the displacement in x direction reaches a certain value. In the
         hsv(num_hv+9) = 1.0d0
 c
 c       call material model:
-        call umat43(cm, eps, sig, epsp, hsv, dt1, etype,
+        call umat43(cm, sig, epsp, hsv, dt1, etype,
      1   failel, elsiz, idele, reject)
 c     
 c       write output
