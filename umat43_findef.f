@@ -135,27 +135,27 @@ c
 c
 c
 c
-      dimension cm(*), hsv(*)
+      double precision cm(23), hsv(30)
       integer nnpcrv
-      real dt1
+      double precision dt1
       integer imax
       character*5 etype
       logical failel, reject
       integer*8 idele, num_hv, elsiz
 
-      real tol, m, dlambda
-      real Ett, Ell, Eww, Gtl, Glw, Gtw, ytt, ytl, ytw
-      real nutl, nult, nutw, nuwt, nulw, nuwl, Delta
-      real yld0tt, yld0tl, yld0tw, yldcrtt, yldcrtl, yldcrtw
-      real flow11, flow12, flow13
-      real epsp_tt, ftrial, epsd, hd, g
-      real sig_trial(6), sig(6)
-      real sig_old(6), var_nonloc, var_loc, dnl, lr, le, eps_star
+      double precision tol, m, dlambda
+      double precision Ett, Ell, Eww, Gtl, Glw, Gtw, ytt, ytl, ytw
+      double precision nutl, nult, nutw, nuwt, nulw, nuwl, Delta
+      double precision yld0tt, yld0tl, yld0tw, yldcrtt, yldcrtl,yldcrtw
+      double precision flow11, flow12, flow13
+      double precision epsp_tt, ftrial, epsd, hd, g
+      double precision sig_trial(6), sig(6)
+      double precision sig_old(6),var_nonloc,var_loc,dnl,lr,le,eps_star
       double precision C4(6,6)
       double precision F_old(3,3), F_new(3,3), F_dot(3,3), F_mid(3,3)
       double precision F_midinv(3,3), L_mid(3,3), D_mid(3,3),W_mid(3,3)
       double precision Fp_old(3,3), Fp_new(3,3), Dp(3,3), deltaLp(3,3)
-      double precision zeros(3,3)
+      double precision Dp_v(6),zeros(3,3)
 
 c     for eigproblem Fp
       double precision wr(3), wi(3), zr(3,3),zi(3,3)
@@ -166,6 +166,8 @@ c     for eigproblem Fp
       double precision dFp(3,3), dFp_i(3,3), Fp_warning
 
       logical :: SING_flag_M33inv = .false.
+
+
 c
 c     Initialize/set parameters:−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−
       num_hv = int(cm(19))! Number of history variables in use
@@ -258,8 +260,12 @@ c     Deformation gradient of current timestep
       
 
       F_mid = (F_new + F_old)*0.5d0 !deformation gradient at time t+1/2dt
-      F_dot = (F_new - F_old)*1/dt1 !time derrivative of deformation gradient
+      F_dot = (F_new - F_old)*1.0d0/dt1 !time derrivative of deformation gradient
       
+c      print*,"hsv", hsv(1),hsv(2),hsv(3),hsv(4),hsv(5),hsv(6),hsv(7)
+c      print*,"Fmid",F_mid(1,1),F_mid(2,2),F_mid(3,3),F_mid(1,2)
+c      print*,"Fold",F_old(1,1),F_old(2,2),F_old(3,3),F_old(1,2)
+c      print*,"Fnew",F_new(1,1),F_new(2,2),F_new(3,3),F_new(1,2)
       call M33inv (F_mid, F_midinv, SING_flag_M33inv) 
 
       if ( SING_flag_M33inv) then
@@ -285,9 +291,9 @@ c     Compute stiffnesstensor orthotropic material:
       C4(2,1)= C4(1,2)
       C4(3,2)= C4(2,3)
       C4(3,1)= C4(1,3)
-      C4(4,4)= Gtl
-      C4(5,5)= Glw
-      C4(6,6)= Gtw
+      C4(4,4)= 2.0d0*Gtl
+      C4(5,5)= 2.0d0*Glw
+      C4(6,6)= 2.0d0*Gtw
 c
 c     Non−local correction initial yield stress
       lr = cm(15)
@@ -308,7 +314,7 @@ c
 c     Check elementtype: 
       if (etype .eq. 'solid') then
         call get_stressincrement(sig_trial, sig_old, F_old, F_new, 
-     1  F_mid, D_mid, C4, dlambda, flow11, flow12, flow13, dt1)
+     1  F_mid, D_mid, C4, dlambda, flow11, flow12, flow13, dt1, Dp_v)
 c
 c        Check for compressive stresses
         if(sig(1) .le. 0.0d0) then
@@ -336,13 +342,15 @@ c           Compute plastic flow direction and step size
 c
 c
             call get_stressincrement(sig, sig_old, F_old, F_new, F_mid,
-     1       D_mid, C4, dlambda, flow11, flow12, flow13, dt1)
-	    Dp = 0.0d0
-	    Dp(1,1) = dlambda*flow11
-	    Dp(1,2) = 0.5*dlambda*flow12
-	    Dp(1,3) = 0.5*dlambda*flow13
-	    Dp(2,1) = Dp(1,2)
-            Dp(3,1) = Dp(1,3)
+     1       D_mid, C4, dlambda, flow11, flow12, flow13, dt1, Dp_v)
+
+            call voigt2full(Dp,Dp_v)
+c	    Dp = 0.0d0
+c	    Dp(1,1) = dlambda*flow11
+c	    Dp(1,2) = 0.5d0*dlambda*flow12
+c	    Dp(1,3) = 0.5d0*dlambda*flow13
+c	    Dp(2,1) = Dp(1,2)
+c           Dp(3,1) = Dp(1,3)
             deltaLp = dt1*(Dp+W_mid)
             zeros = 0.0d0
 
@@ -376,8 +384,6 @@ c           call cg(nm,n,Fp_r,Fp_c,wr,wi,matz,zr,zi,fv1,fv2,fv3,ierr)
      1        matmul(eigval_diag_exp,eigvec_inv)))
             Fp_new = matmul(dFp,Fp_old)
             
-c            Fp_new = Fp_old
-c
           else
 c           Update stresses for elastic compression:
             sig = sig_trial
@@ -445,29 +451,31 @@ c
 c                      STRESS INCREMENT
 c_________________________________________________________________________
 
-      subroutine get_stressincrement(sig_new_v, sig_old_v, F_old,F_new, 
-     1  F_mid, D, C4,dlambda, flow11, flow12, flow13, dt1)
+      subroutine get_stressincrement(sig_new_v, sig_old_v, F_old,F_new,
+     1  F_mid, D, C4,dlambda, flow11, flow12, flow13, dt1, Dp_v)
       
-      real sig_new_v(6), sig_old_v(6), dlambda, flow11, flow12, flow13
+      double precision sig_new_v(6), sig_old_v(6)
+      double precision dlambda, flow11, flow12, flow13
       double precision F_old(3,3), F_new(3,3), F_mid(3,3), D(3,3)
-      double precision C4(6,6)
+      double precision C4(6,6), dt1
 
-      real sig_old(3,3), sig_old_bar(3,3)
+      double precision sig_old(3,3), sig_old_bar(3,3)
       double precision F_oldinv(3,3), F_midinv(3,3)
-      double precision Deinv(3,3), Dp(3,3), De(3,3), De_bar(3,3) 
+      double precision Deinv(3,3), Dp(3,3), De(3,3),De_bar(3,3),Dp_v(6) 
       double precision De_bar_v(6), CdoubleD_v(6), CdoubleD(3,3)
       double precision sig_new_bar(3,3), sig_new(3,3)
       logical :: SING_flag_M33inv = .false.
 
-      sig_old(1,1) = sig_old_v(1)
-      sig_old(2,2) = sig_old_v(2)
-      sig_old(3,3) = sig_old_v(3)
-      sig_old(1,2) = sig_old_v(4)
-      sig_old(2,3) = sig_old_v(5)
-      sig_old(1,3) = sig_old_v(6)
-      sig_old(2,1) = sig_old(1,2)
-      sig_old(3,1) = sig_old(1,3)
-      sig_old(3,2) = sig_old(2,3)
+      call voigt2full(sig_old,sig_old_v)
+c      sig_old(1,1) = sig_old_v(1)
+c      sig_old(2,2) = sig_old_v(2)
+c      sig_old(3,3) = sig_old_v(3)
+c      sig_old(1,2) = sig_old_v(4)
+c      sig_old(2,3) = sig_old_v(5)
+c      sig_old(1,3) = sig_old_v(6)
+c      sig_old(2,1) = sig_old(1,2)
+c      sig_old(3,1) = sig_old(1,3)
+c      sig_old(3,2) = sig_old(2,3)
 c
       call M33inv(F_old, F_oldinv, SING_flag_M33inv)
 c      if ( SING_flag_M33inv) then
@@ -481,13 +489,13 @@ c      endif
 c
       sig_old_bar = matmul(matmul(F_oldinv,sig_old),
      1 transpose(F_oldinv)) 
-c
-      Dp = 0.0d0
-      Dp(1,1) = dlambda*flow11
-      Dp(1,2) = 0.5*dlambda*flow12
-      Dp(1,3) = 0.5*dlambda*flow13
-      Dp(2,1) = Dp(1,2)
-      Dp(3,1) = Dp(1,3)
+c     
+      Dp_v = 0.0d0
+      Dp_v(1) = dlambda*flow11
+      Dp_v(4) = 0.5d0*dlambda*flow12
+      Dp_v(6) = 0.5d0*dlambda*flow13
+      
+      call voigt2full(Dp, Dp_v)
 c
       De = D - Dp 
 c
@@ -499,33 +507,36 @@ c      endif
       De_bar = matmul(matmul(F_midinv,De),
      1 transpose(F_midinv))
 c
-      De_bar_v(1) = De_bar(1,1)
-      De_bar_v(2) = De_bar(2,2)
-      De_bar_v(3) = De_bar(3,3)
-      De_bar_v(4) = 2.0*De_bar(1,2)
-      De_bar_v(5) = 2.0*De_bar(2,3)
-      De_bar_v(6) = 2.0*De_bar(1,3)
+      call full2voigt(De_bar,De_bar_v)
+c      De_bar_v(1) = De_bar(1,1)
+c      De_bar_v(2) = De_bar(2,2)
+c      De_bar_v(3) = De_bar(3,3)
+c      De_bar_v(4) = De_bar(1,2)
+c      De_bar_v(5) = De_bar(2,3)
+c      De_bar_v(6) = De_bar(1,3)
 c
       CdoubleD_v = matmul(C4,De_bar_v)
-      CdoubleD(1,1) = CdoubleD_v(1)
-      CdoubleD(2,2) = CdoubleD_v(2)
-      CdoubleD(3,3) = CdoubleD_v(3)
-      CdoubleD(1,2) = CdoubleD_v(4)
-      CdoubleD(2,3) = CdoubleD_v(5)
-      CdoubleD(1,3) = CdoubleD_v(6)
-      CdoubleD(2,1) = CdoubleD(1,2)
-      CdoubleD(3,1) = CdoubleD(3,1)
-      CdoubleD(3,2) = CdoubleD(2,3)
+      call voigt2full(CdoubleD,CdoubleD_v)
+c      CdoubleD(1,1) = CdoubleD_v(1)
+c      CdoubleD(2,2) = CdoubleD_v(2)
+c      CdoubleD(3,3) = CdoubleD_v(3)
+c      CdoubleD(1,2) = CdoubleD_v(4)
+c      CdoubleD(2,3) = CdoubleD_v(5)
+c      CdoubleD(1,3) = CdoubleD_v(6)
+c      CdoubleD(2,1) = CdoubleD(1,2)
+c      CdoubleD(3,1) = CdoubleD(3,1)
+c      CdoubleD(3,2) = CdoubleD(2,3)
 c
       sig_new_bar = sig_old_bar + dt1*CdoubleD
       sig_new = matmul(matmul(F_new,sig_new_bar),transpose(F_new))
 c
-      sig_new_v(1) = sig_new(1,1)
-      sig_new_v(2) = sig_new(2,2)
-      sig_new_v(3) = sig_new(3,3)
-      sig_new_v(4) = sig_new(1,2)
-      sig_new_v(5) = sig_new(2,3)
-      sig_new_v(6) = sig_new(1,3)
+      call full2voigt(sig_new,sig_new_v)
+c      sig_new_v(1) = sig_new(1,1)
+c      sig_new_v(2) = sig_new(2,2)
+c      sig_new_v(3) = sig_new(3,3)
+c      sig_new_v(4) = sig_new(1,2)
+c      sig_new_v(5) = sig_new(2,3)
+c      sig_new_v(6) = sig_new(1,3)
 c
       end
 
@@ -548,8 +559,8 @@ c     Routine computes the current yield stress according to
 c     accumulated plastic strain
 c
       implicit none
-      real epsp, yld, yld0, yldcr, epsd, g, hd
-      real s_avg, sf, sc, lambdap, lambdac
+      double precision epsp, yld, yld0, yldcr, epsd, g, hd
+      double precision s_avg, sf, sc, lambdap, lambdac
 
 c
 c     Softening/platuea stress region:
@@ -559,7 +570,7 @@ c     Softening/platuea stress region:
      1   **((yld0-s_avg)/(s_avg-yldcr))
 c     Densification region:
       elseif(epsp .gt. epsd) then
-        yld = yldcr + sign(1.0,yldcr)*hd*(epsp-epsd)**2.0d0
+        yld = yldcr + dsign(1.0d0,yldcr)*hd*(epsp-epsd)**2.0d0
       endif
 
 c!!!!!!!!!!!!!!!!!!!!!!!
@@ -586,7 +597,7 @@ c ******************************************************************
 c
 
       implicit none
-      real m, f , sig11, sig12, sig13, ytt, ytl, ytw
+      double precision m, f , sig11, sig12, sig13, ytt, ytl, ytw
 c
 
       f =(sig11/ytt)+((sig12/ytl)**2.0d0+(sig13/ytw)**2.0d0)**(m*0.5d0)
@@ -611,11 +622,11 @@ c | Based on implementation by Popp 2007                 |
 c | Based on paper by Mohr & Dojojo 2004                 |
 c ******************************************************************
       implicit none
-      real sig(6)
-      real flow11, flow12, flow13
-      real S11, S12, S13, rJ1, rJ2, rJ3
-      real solu, soluInv, eval1, eval2, eval3, evec1, evec2, evec3
-      real evecNorm, evecNormInv, tol
+      double precision sig(6)
+      double precision flow11, flow12, flow13
+      double precision S11, S12, S13, rJ1, rJ2, rJ3
+      double precision solu, soluInv, eval1, eval2, eval3, evec1
+      double precision evec2, evec3, evecNorm, evecNormInv, tol
 c
       tol = 0.000001d0
 c
@@ -696,13 +707,13 @@ c | Based on implementation by Popp 2007                      |
 c | Based on paper by Mohr & Dojojo 2004                      |
 c ******************************************************************
       implicit none
-      real dlambda, sig_old_v(6)
+      double precision dlambda, sig_old_v(6)
       double precision F_old(3,3), F_new(3,3), F_mid(3,3), D(3,3)
-      double precision C4(6,6)
-      real flow11, flow12, flow13, dt, ytt, ytl, ytw, dt1, m
+      double precision C4(6,6), Dp_v(6)
+      double precision flow11, flow12, flow13, dt, ytt, ytl, ytw, dt1, m
 
-      real sig_test(6)
-      real xr, fr, xi, ximin, fi, fimin, tol
+      double precision sig_test(6)
+      double precision xr, fr, xi, ximin, fi, fimin, tol
       integer iter, imax
 
 c     Initiate parameters:
@@ -718,13 +729,13 @@ c     Secant method for determination of plastic multiplier:
         iter = iter +1
 c
         call get_stressincrement(sig_test, sig_old_v, F_old,F_new, 
-     1  F_mid, D, C4, ximin, flow11, flow12, flow13, dt1) 
+     1  F_mid, D, C4, ximin, flow11, flow12, flow13, dt1, Dp_v) 
 c
         call compute_yield_coupled(fimin, sig_test(1), sig_test(4), 
      1   sig_test(6),m, ytt, ytl, ytw)
 c
         call get_stressincrement(sig_test, sig_old_v, F_old,F_new, 
-     1  F_mid, D, C4, xi, flow11, flow12, flow13, dt1) 
+     1  F_mid, D, C4, xi, flow11, flow12, flow13, dt1, Dp_v) 
 c
         call compute_yield_coupled(fi, sig_test(1), sig_test(4), 
      1   sig_test(6),m, ytt, ytl, ytw)
@@ -739,7 +750,7 @@ c
      1    print*, "ERROR_ Use_double_precision!"
 c
         call get_stressincrement(sig_test, sig_old_v, F_old,F_new, 
-     1  F_mid, D, C4, xr, flow11, flow12, flow13, dt1) 
+     1  F_mid, D, C4, xr, flow11, flow12, flow13, dt1, Dp_v) 
 
 c
         call compute_yield_coupled(fr, sig_test(1), sig_test(4), 
@@ -876,3 +887,45 @@ c_________________________________________________________________________
       RETURN
 
       END SUBROUTINE M33INV_comp
+
+
+c_________________________________________________________________________
+c 
+c                       voigt2full
+c_________________________________________________________________________
+      SUBROUTINE voigt2full (x_full, x_voigt)
+
+      IMPLICIT NONE
+      double precision x_full(3,3), x_voigt(6)
+
+      x_full(1,1) = x_voigt(1)
+      x_full(2,2) = x_voigt(2)
+      x_full(3,3) = x_voigt(3)
+      x_full(1,2) = x_voigt(4)
+      x_full(2,3) = x_voigt(5)
+      x_full(1,3) = x_voigt(6)
+      x_full(2,1) = x_full(1,2)
+      x_full(3,2) = x_full(2,3)
+      x_full(3,1) = x_full(1,3)
+
+      RETURN
+      END
+
+c_________________________________________________________________________
+c 
+c                       full2voigt
+c_________________________________________________________________________
+      SUBROUTINE full2voigt (x_full, x_voigt)
+
+      IMPLICIT NONE
+      double precision x_full(3,3), x_voigt(6)
+
+      x_voigt(1) = x_full(1,1)
+      x_voigt(2) = x_full(2,2)
+      x_voigt(3) = x_full(3,3)
+      x_voigt(4) = x_full(1,2)
+      x_voigt(5) = x_full(2,3)
+      x_voigt(6) = x_full(1,3)
+
+      RETURN
+      END
