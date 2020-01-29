@@ -1,7 +1,11 @@
 C----|--1---------2---------3---------4---------5---------6---------7-|
-C     Tom van Beurden (27-01-2019)
+c *******************************************************************
+c | Edit by Tom van Beurden, 29−01−2020                       |
+c | Eindhoven University of Technology & BMW Group            |
+c *******************************************************************    
 C     Test file to run umat file externally.
-     
+
+
       PROGRAM TEST
 
       IMPLICIT NONE

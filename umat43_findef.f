@@ -6,7 +6,6 @@ c
 c                        MAIN CODE
 c_________________________________________________________________________
 
-
       subroutine umat43(cm, sig, epsp, hsv, dt1, etype,
      1 failel, elsiz, idele, reject)
 c
@@ -16,8 +15,9 @@ c| −−−−−−−−−−−−−−−−−−−−−−−−−�
 c| Copyright 1987−2008 Livermore Software Tech. Corp            |
 c| Alll rights reserved                                         |
 c| −−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−− |
-c| Edit by Dennis van Iersel, 19−09−2018                        |
+c| Edit by Tom van Beurden, 28−01-2020                          |
 c| Eindhoven University of Technology & BMW Group               |
+c| Based on implementation by Dennis van Iersel 2018            |
 c| Based on implementation by Popp 2007                         |
 c*********************************************************************
 c
@@ -423,7 +423,12 @@ c_________________________________________________________________________
 
       subroutine get_stressincrement(sig_new_v, sig_old_v, F_old,F_new,
      1  F_mid, D, C4,dlambda, flow11, flow12, flow13, dt1, Dp_v)
-      
+
+c *******************************************************************
+c | Edit by Tom van Beurden, 29−01−2020                             |
+c | Eindhoven University of Technology & BMW Group                  |
+c *******************************************************************     
+ 
       double precision sig_new_v(6), sig_old_v(6)
       double precision dlambda, flow11, flow12, flow13
       double precision F_old(3,3), F_new(3,3), F_mid(3,3), D(3,3)
@@ -476,10 +481,11 @@ c_________________________________________________________________________
 
       subroutine compute_yield_stress(epsp, yld, yld0, yldcr, 
      1 epsd, hd, g)
+
 c *******************************************************************
-c | Edit by Dennis van Iersel, 27−09−2018                     |
-c | Eindhoven University of Technology & BMW Group            |
-c | Based on paper by Mohr & Dojojo 2003                      |
+c | Edit by Dennis van Iersel, 27−09−2018                           |
+c | Eindhoven University of Technology & BMW Group                  |
+c | Based on paper by Mohr & Dojojo 2003                            |
 c *******************************************************************
 c
 c     Routine computes the current yield stress according to
@@ -488,7 +494,6 @@ c
       implicit none
       double precision epsp, yld, yld0, yldcr, epsd, g, hd
       double precision s_avg, sf, sc, lambdap, lambdac
-
 c
 c     Softening/platuea stress region:
       if(epsp .ge. 0.0d0 .and. epsp .le. epsd) then
@@ -499,11 +504,7 @@ c     Densification region:
       elseif(epsp .gt. epsd) then
         yld = yldcr + dsign(1.0d0,yldcr)*hd*(epsp-epsd)**2.0d0
       endif
-
-c!!!!!!!!!!!!!!!!!!!!!!!
-c CHANGED dsign(yldcr,1.0d0) to sign(1.0,yldcr)
-c Because of double error and "sign(A,B) returns value of A with sign of B"
-c!!!!!!!!!!!!!!!!!!!!!!!      
+ 
       return
       end
 
@@ -517,9 +518,9 @@ c_________________________________________________________________________
      1 ytt,ytl,ytw)
 
 c ******************************************************************
-c | Eit by Dennis van Iersel, 26-09-2018                      |
-c | Eindhoven University of Technology & BMW Group            |
-c | Based on paper by Mohr & Dojojo 2004                      |
+c | Edit by Dennis van Iersel, 26-09-2018                          |
+c | Eindhoven University of Technology & BMW Group                 |
+c | Based on paper by Mohr & Dojojo 2004                           |
 c ******************************************************************
 c
 
@@ -540,10 +541,10 @@ c_________________________________________________________________________
 
       subroutine get_flowvector(sig, flow11, flow12, flow13 )
 c ******************************************************************
-c | Edit by Dennis van Iersel, 26−09−2018                |
-c | Eindhoven University of Technology & BMW Group       |
-c | Based on implementation by Popp 2007                 |
-c | Based on paper by Mohr & Dojojo 2004                 |
+c | Edit by Dennis van Iersel, 26−09−2018                          |
+c | Eindhoven University of Technology & BMW Group                 |
+c | Based on implementation by Popp 2007                           |
+c | Based on paper by Mohr & Dojojo 2004                           |
 c ******************************************************************
       implicit none
       double precision sig(6)
@@ -604,11 +605,6 @@ c     Compute plastic flowvector:
       flow12 = -sign(1.d0,evec1)*evec2
       flow13 = -sign(1.d0,evec1)*evec3
 
-c!!!!!!!!!!!!!!!!!!!!!!!
-c EDIT1: sign(1.d0,evec1) to sign(1.0,evec1)
-c EDIT2: deleted sign alltogether 
-c!!!!!!!!!!!!!!!!!!!!!!!  
-c
       return
       end
 
@@ -625,10 +621,11 @@ c_________________________________________________________________________
      2  ytl, ytw, m)
 
 c ******************************************************************
-c | Edit by Dennis van Iersel, 26−09−2018                     |
-c | Eindhoven University of Technology & BMW Group            |
-c | Based on implementation by Popp 2007                      |
-c | Based on paper by Mohr & Dojojo 2004                      |
+c | Edit by Tom van Beurden, 28−01−2020                            |
+c | Eindhoven University of Technology & BMW Group                 |
+c | Based on implementation by Dennis van Iersel 2018              |
+c | Based on implementation by Popp 2007                           |
+c | Based on paper by Mohr & Dojojo 2004                           |
 c ******************************************************************
       implicit none
       double precision dlambda, sig_old_v(6)
@@ -702,16 +699,15 @@ c
 c                       INVERSE 3x3
 c_________________________________________________________________________
 
-!***********************************************************************************************************************************
-!  M33INV  -  Compute the inverse of a 3x3 matrix.
-!
-!  A       = input 3x3 matrix to be inverted
-!  AINV    = output 3x3 inverse of matrix A
-!  Open source subroutine retreived from http://web.hku.hk/~gdli/UsefulFiles/matrix/m33inv_f90.txt
-!***********************************************************************************************************************************
 
       SUBROUTINE M33INV (A, AINV)
-
+c ******************************************************************
+c | Edit by Tom van Beurden, 28−01−2020                            |
+c | Eindhoven University of Technology & BMW Group                 |
+c | Based on open source tool:                                     |
+c | http://web.hku.hk/~gdli/UsefulFiles/matrix/m33inv_f90.txt      |
+c ******************************************************************
+c     Program to compute the inverse of a 3x3 matrix
       IMPLICIT NONE
 
       DOUBLE PRECISION  A(3,3)
@@ -757,16 +753,15 @@ c
 c                       COMPLEX INVERSE 3x3
 c_________________________________________________________________________
 
-!***********************************************************************************************************************************
-!  M33INV  -  Compute the inverse of a 3x3 matrix.
-!
-!  A       = input 3x3 matrix to be inverted
-!  AINV    = output 3x3 inverse of matrix A
-!  Open source subroutine retreived from http://web.hku.hk/~gdli/UsefulFiles/matrix/m33inv_f90.txt
-!***********************************************************************************************************************************
 
       SUBROUTINE M33INV_comp (A, AINV)
-
+c ******************************************************************
+c | Edit by Tom van Beurden, 28−01−2020                            |
+c | Eindhoven University of Technology & BMW Group                 |
+c | Based on open source tool:                                     |
+c | http://web.hku.hk/~gdli/UsefulFiles/matrix/m33inv_f90.txt      |
+c ******************************************************************
+c     Program to compute the inverse of a complex 3x3 matrix
       IMPLICIT NONE
 
       complex*16  A(3,3)
@@ -810,6 +805,13 @@ c_________________________________________________________________________
 c 
 c                       voigt2full
 c_________________________________________________________________________
+
+
+      SUBROUTINE voigt2full (x_full, x_voigt)
+c *******************************************************************
+c | Edit by Tom van Beurden, 29−01−2020                             |
+c | Eindhoven University of Technology & BMW Group                  |
+c *******************************************************************
 c     Converts tensor in voigt format to full tensor format
 c     Voigt format: 
 c     [TT, LL, WW, TL, LW, TW]
@@ -819,7 +821,6 @@ c     [TT TL TW]
 c     [LT LL LW]
 c     [WT WL WW]
 
-      SUBROUTINE voigt2full (x_full, x_voigt)
 
       IMPLICIT NONE
       double precision x_full(3,3), x_voigt(6)
@@ -841,6 +842,13 @@ c_________________________________________________________________________
 c 
 c                       full2voigt
 c_________________________________________________________________________
+
+
+      SUBROUTINE full2voigt (x_full, x_voigt)
+c *******************************************************************
+c | Edit by Tom van Beurden, 29−01−2020                             |
+c | Eindhoven University of Technology & BMW Group                  |
+c *******************************************************************
 c     Converts full tensor to voigt format
 c     Voigt format: 
 c     [TT, LL, WW, TL, LW, TW]
@@ -849,9 +857,6 @@ c     Full tensor format:
 c     [TT TL TW]
 c     [LT LL LW]
 c     [WT WL WW]
-
-      SUBROUTINE full2voigt (x_full, x_voigt)
-
       IMPLICIT NONE
       double precision x_full(3,3), x_voigt(6)
 

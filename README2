@@ -1,6 +1,6 @@
 
 1. TO RUN umat43_findef.f, use the commands: 
-gfortran test_findef.f umat43_findef.f
+gfortran test_findef.f umat43_findef.f eigcomplex.f
 ./a.out
 
 
