@@ -165,13 +165,11 @@ c     for eigproblem Fp
       complex*16 :: eigvec_inv(3,3)
       double precision dFp(3,3), dFp_i(3,3), Fp_warning
 
-      logical :: SING_flag_M33inv = .false.
-
 
 c
 c     Initialize/set parameters:−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−
       num_hv = int(cm(19))! Number of history variables in use
-      toll = 0.000001! Tolerance for yieldsurface
+      toll = 1.0d-5! Tolerance for yieldsurface
       imax = 5000! Max. number of iterations for plastic multiplier
       m = 1.0d0 ! Parameter in yield surface
       dlambda= 0.0d0 ! Plastic multiplier
@@ -257,27 +255,15 @@ c     Deformation gradient of current timestep
       F_new(1,3)= hsv(num_hv+7)! F13 (old deformation gradient)
       F_new(2,3)= hsv(num_hv+8)! F23 (old deformation gradient)
       F_new(3,3)= hsv(num_hv+9)! F33 (old deformation gradient)
-      
-
+c
       F_mid = (F_new + F_old)*0.5d0 !deformation gradient at time t+1/2dt
       F_dot = (F_new - F_old)*1.0d0/dt1 !time derrivative of deformation gradient
-      
-c      print*,"hsv", hsv(1),hsv(2),hsv(3),hsv(4),hsv(5),hsv(6),hsv(7)
-c      print*,"Fmid",F_mid(1,1),F_mid(2,2),F_mid(3,3),F_mid(1,2)
-c      print*,"Fold",F_old(1,1),F_old(2,2),F_old(3,3),F_old(1,2)
-c      print*,"Fnew",F_new(1,1),F_new(2,2),F_new(3,3),F_new(1,2)
-      call M33inv (F_mid, F_midinv, SING_flag_M33inv) 
-
-      if ( SING_flag_M33inv) then
-       print*, "ERROR_M33inv:_Singular_matrix!"
-      endif
+c
+      call M33inv (F_mid, F_midinv) 
 
       L_mid = matmul(F_dot,F_midinv) !velocity gradient at time t+1/2dt
       D_mid = 0.5d0*(L_mid+transpose(L_mid)) !Rate of deformation at time t+1/2dt
       W_mid = 0.5d0*(L_mid-transpose(L_mid)) !Spin tensor at time t+1/2dt
-
-c
-c     Compute material properties: −−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−
 c
 c     Compute stiffnesstensor orthotropic material:
       Delta = 1.0d0-nutl*nult-nulw*nuwl-nuwt*nutw-2.0d0*nuwl*nult*nutw
@@ -307,9 +293,6 @@ c     Non−local correction initial yield stress
 c
       if (yld0tt .ge. 0.0d0)
      1 print *, "WARNING:_compressive_strength_should_be_negative!"
-
-c
-c     Compute linear strain tensor: −−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−
 c
 c     Check elementtype: 
       if (etype .eq. 'solid') then
@@ -327,7 +310,6 @@ c         Compute yield stresses
           call compute_yield_stress(epsp_tt, ytw, yld0tw, yldcrtw, 
      3     epsd, hd, g)
 c
-c
 c         Check if yieldsurface boundary is exceeded
           call compute_yield_coupled(ftrial,sig_trial(1),
      1     sig_trial(4), sig_trial(6), m, ytt, ytl, ytw)
@@ -340,20 +322,12 @@ c           Compute plastic flow direction and step size
      1        F_old,F_new, F_mid, D_mid, C4, flow11, flow12, flow13,   
      2        dt1, ytt, ytl, ytw, m)
 c
-c
             call get_stressincrement(sig, sig_old, F_old, F_new, F_mid,
      1       D_mid, C4, dlambda, flow11, flow12, flow13, dt1, Dp_v)
 
             call voigt2full(Dp,Dp_v)
-c	    Dp = 0.0d0
-c	    Dp(1,1) = dlambda*flow11
-c	    Dp(1,2) = 0.5d0*dlambda*flow12
-c	    Dp(1,3) = 0.5d0*dlambda*flow13
-c	    Dp(2,1) = Dp(1,2)
-c           Dp(3,1) = Dp(1,3)
             deltaLp = dt1*(Dp+W_mid)
             zeros = 0.0d0
-
 
 c           Complex eigensolver (open source tool EISPACK)
 c           call cg(nm,n,Fp_r,Fp_c,wr,wi,matz,zr,zi,fv1,fv2,fv3,ierr)
@@ -367,7 +341,7 @@ c           call cg(nm,n,Fp_r,Fp_c,wr,wi,matz,zr,zi,fv1,fv2,fv3,ierr)
             eigval_diag_exp(2,2) = exp(eigval(2))
             eigval_diag_exp(3,3) = exp(eigval(3))
 
-            call M33INV_comp (eigvec, eigvec_inv,  SING_flag_M33inv)
+            call M33INV_comp (eigvec, eigvec_inv)
 
             dFp_i = aimag(matmul(eigvec,
      1        matmul(eigval_diag_exp,eigvec_inv)))
@@ -400,13 +374,9 @@ c
 c       Store plastic strains in history variables:
 c        hsv(1)= epsp_tt
         hsv(1)= 1-F_new(1,1)
-
-c
-c       Store non-local variables
         hsv(2)= var_nonloc
         var_loc=epsp_tt
         hsv(3)= ftrial
-c
 c
 c       Store old deformation gradient
         hsv(4)= hsv(num_hv+1) !F11_old (deformation gradient)
@@ -461,31 +431,15 @@ c_________________________________________________________________________
 
       double precision sig_old(3,3), sig_old_bar(3,3)
       double precision F_oldinv(3,3), F_midinv(3,3)
-      double precision Deinv(3,3), Dp(3,3), De(3,3),De_bar(3,3),Dp_v(6) 
+      double precision Dp(3,3), De(3,3),De_bar(3,3),Dp_v(6) 
       double precision De_bar_v(6), CdoubleD_v(6), CdoubleD(3,3)
       double precision sig_new_bar(3,3), sig_new(3,3)
-      logical :: SING_flag_M33inv = .false.
 
       call voigt2full(sig_old,sig_old_v)
-c      sig_old(1,1) = sig_old_v(1)
-c      sig_old(2,2) = sig_old_v(2)
-c      sig_old(3,3) = sig_old_v(3)
-c      sig_old(1,2) = sig_old_v(4)
-c      sig_old(2,3) = sig_old_v(5)
-c      sig_old(1,3) = sig_old_v(6)
-c      sig_old(2,1) = sig_old(1,2)
-c      sig_old(3,1) = sig_old(1,3)
-c      sig_old(3,2) = sig_old(2,3)
 c
-      call M33inv(F_old, F_oldinv, SING_flag_M33inv)
-c      if ( SING_flag_M33inv) then
-c       print*, "ERROR_M33inv:_Singular_matrix!"
-c      endif
+      call M33inv(F_old, F_oldinv)
 c
-      call M33inv(F_mid, F_midinv, SING_flag_M33inv)
-c      if ( SING_flag_M33inv) then
-c       print*, "ERROR_M33inv:_Singular_matrix!"
-c      endif
+      call M33inv(F_mid, F_midinv)
 c
       sig_old_bar = matmul(matmul(F_oldinv,sig_old),
      1 transpose(F_oldinv)) 
@@ -494,49 +448,22 @@ c
       Dp_v(1) = dlambda*flow11
       Dp_v(4) = 0.5d0*dlambda*flow12
       Dp_v(6) = 0.5d0*dlambda*flow13
-      
+c
       call voigt2full(Dp, Dp_v)
 c
       De = D - Dp 
-c
-      call M33inv(De, Deinv, SING_flag_M33inv)
-      
-c      if ( SING_flag_M33inv) then
-c       print*, "ERROR_M33inv:_Singular_matrix!"
-c      endif
       De_bar = matmul(matmul(F_midinv,De),
      1 transpose(F_midinv))
 c
       call full2voigt(De_bar,De_bar_v)
-c      De_bar_v(1) = De_bar(1,1)
-c      De_bar_v(2) = De_bar(2,2)
-c      De_bar_v(3) = De_bar(3,3)
-c      De_bar_v(4) = De_bar(1,2)
-c      De_bar_v(5) = De_bar(2,3)
-c      De_bar_v(6) = De_bar(1,3)
 c
       CdoubleD_v = matmul(C4,De_bar_v)
       call voigt2full(CdoubleD,CdoubleD_v)
-c      CdoubleD(1,1) = CdoubleD_v(1)
-c      CdoubleD(2,2) = CdoubleD_v(2)
-c      CdoubleD(3,3) = CdoubleD_v(3)
-c      CdoubleD(1,2) = CdoubleD_v(4)
-c      CdoubleD(2,3) = CdoubleD_v(5)
-c      CdoubleD(1,3) = CdoubleD_v(6)
-c      CdoubleD(2,1) = CdoubleD(1,2)
-c      CdoubleD(3,1) = CdoubleD(3,1)
-c      CdoubleD(3,2) = CdoubleD(2,3)
 c
       sig_new_bar = sig_old_bar + dt1*CdoubleD
       sig_new = matmul(matmul(F_new,sig_new_bar),transpose(F_new))
 c
       call full2voigt(sig_new,sig_new_v)
-c      sig_new_v(1) = sig_new(1,1)
-c      sig_new_v(2) = sig_new(2,2)
-c      sig_new_v(3) = sig_new(3,3)
-c      sig_new_v(4) = sig_new(1,2)
-c      sig_new_v(5) = sig_new(2,3)
-c      sig_new_v(6) = sig_new(1,3)
 c
       end
 
@@ -599,14 +526,11 @@ c
       implicit none
       double precision m, f , sig11, sig12, sig13, ytt, ytl, ytw
 c
-
       f =(sig11/ytt)+((sig12/ytl)**2.0d0+(sig13/ytw)**2.0d0)**(m*0.5d0)
      1  -1.0d0
 c
       return
       end
-
-
 
 
 c_________________________________________________________________________
@@ -628,7 +552,7 @@ c ******************************************************************
       double precision solu, soluInv, eval1, eval2, eval3, evec1
       double precision evec2, evec3, evecNorm, evecNormInv, tol
 c
-      tol = 0.000001d0
+      tol = 1.0d-5
 c
 c     Reduced stress tensor
       S11 = sig(1)
@@ -676,9 +600,9 @@ c     Determination of corresponding eigenvector:
       evec3 = evec3*evecNormInv
 c
 c     Compute plastic flowvector:
-      flow11 = -evec1
-      flow12 = -evec2
-      flow13 = -evec3
+      flow11 = -sign(1.d0,evec1)*evec1
+      flow12 = -sign(1.d0,evec1)*evec2
+      flow13 = -sign(1.d0,evec1)*evec3
 
 c!!!!!!!!!!!!!!!!!!!!!!!
 c EDIT1: sign(1.d0,evec1) to sign(1.0,evec1)
@@ -719,10 +643,10 @@ c ******************************************************************
 c     Initiate parameters:
       fr = 100.0d0
       iter = 0
-      xi = 0.00001d0
+      xi = 1.0d-5
       ximin = 0.0d0
       imax = 5000
-      tol = 0.00001d0
+      tol = 1.0d-5
 c
 c     Secant method for determination of plastic multiplier:
       do while(abs(fr) .gt. tol .and. iter .lt. imax )
@@ -783,17 +707,15 @@ c_________________________________________________________________________
 !
 !  A       = input 3x3 matrix to be inverted
 !  AINV    = output 3x3 inverse of matrix A
-!  OK_FLAG = (output) .TRUE. if the input matrix could be inverted, and .FALSE. if the input matrix is singular.
 !  Open source subroutine retreived from http://web.hku.hk/~gdli/UsefulFiles/matrix/m33inv_f90.txt
 !***********************************************************************************************************************************
 
-      SUBROUTINE M33INV (A, AINV, SING_FLAG)
+      SUBROUTINE M33INV (A, AINV)
 
       IMPLICIT NONE
 
       DOUBLE PRECISION  A(3,3)
       DOUBLE PRECISION  AINV(3,3)
-      LOGICAL SING_FLAG
 
       DOUBLE PRECISION, PARAMETER :: EPS = 1.0D-10
       DOUBLE PRECISION :: DET
@@ -808,7 +730,7 @@ c_________________________________________________________________________
 
       IF (ABS(DET) .LE. EPS) THEN
          AINV = 0.0D0
-         SING_FLAG = .TRUE.
+         print*,"Error M33inv: Singular matrix"
          RETURN
       END IF
 
@@ -824,7 +746,6 @@ c_________________________________________________________________________
 
       AINV = TRANSPOSE(COFACTOR) / DET
 
-      SING_FLAG = .FALSE.
 
       RETURN
 
@@ -841,17 +762,15 @@ c_________________________________________________________________________
 !
 !  A       = input 3x3 matrix to be inverted
 !  AINV    = output 3x3 inverse of matrix A
-!  OK_FLAG = (output) .TRUE. if the input matrix could be inverted, and .FALSE. if the input matrix is singular.
 !  Open source subroutine retreived from http://web.hku.hk/~gdli/UsefulFiles/matrix/m33inv_f90.txt
 !***********************************************************************************************************************************
 
-      SUBROUTINE M33INV_comp (A, AINV, SING_FLAG)
+      SUBROUTINE M33INV_comp (A, AINV)
 
       IMPLICIT NONE
 
       complex*16  A(3,3)
       complex*16  AINV(3,3)
-      LOGICAL SING_FLAG
 
       DOUBLE PRECISION, PARAMETER :: EPS = 1.0D-10
       complex*16 :: DET
@@ -866,7 +785,7 @@ c_________________________________________________________________________
 
       IF (ABS(DET) .LE. EPS) THEN
          AINV = 0.0D0
-         SING_FLAG = .TRUE.
+         print*,"Error M33inv_comp: Singular matrix"
          RETURN
       END IF
 
@@ -882,8 +801,6 @@ c_________________________________________________________________________
 
       AINV = TRANSPOSE(COFACTOR) / DET
 
-      SING_FLAG = .FALSE.
-
       RETURN
 
       END SUBROUTINE M33INV_comp
@@ -893,6 +810,15 @@ c_________________________________________________________________________
 c 
 c                       voigt2full
 c_________________________________________________________________________
+c     Converts tensor in voigt format to full tensor format
+c     Voigt format: 
+c     [TT, LL, WW, TL, LW, TW]
+c
+c     Full tensor format: 
+c     [TT TL TW]
+c     [LT LL LW]
+c     [WT WL WW]
+
       SUBROUTINE voigt2full (x_full, x_voigt)
 
       IMPLICIT NONE
@@ -915,6 +841,15 @@ c_________________________________________________________________________
 c 
 c                       full2voigt
 c_________________________________________________________________________
+c     Converts full tensor to voigt format
+c     Voigt format: 
+c     [TT, LL, WW, TL, LW, TW]
+c
+c     Full tensor format: 
+c     [TT TL TW]
+c     [LT LL LW]
+c     [WT WL WW]
+
       SUBROUTINE full2voigt (x_full, x_voigt)
 
       IMPLICIT NONE
