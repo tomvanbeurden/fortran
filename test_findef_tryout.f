@@ -25,7 +25,7 @@ c      double precision :: eps(6) = 0.0d0 !Initiate strain
       integer :: elsiz = -1   !unused parameter
       double precision :: pi
       double precision :: alpha	     !Loading angle
-      double precision :: alpha_deg = 45.5d0 !Loading angle in degrees
+      double precision :: alpha_deg = 90.0d0 !Loading angle in degrees
       double precision :: u = 0.0d0, u_x = 0.0d0, u_y = 0.0d0 !define displacement components
 
  
@@ -75,7 +75,7 @@ c     Open file to write output
 c     Loop until the displacement in x direction reaches a certain value. In the loop the new deformation gradient is prescribed. The new deformation gradient is in this case stored in the history array from hsv(num_hv+1) to hsv(num_hv+9). I apply compression under an angle wrt the 11 direction, so the F11 component and F21 component change. 
       do while(u_x .gt. -0.85d0)
         hsv(num_hv+1) = 1.0d0+u_x
-        hsv(num_hv+3) = u_y
+        hsv(num_hv+2) = u_y
         hsv(num_hv+5) = 1.0d0
         hsv(num_hv+9) = 1.0d0
 c

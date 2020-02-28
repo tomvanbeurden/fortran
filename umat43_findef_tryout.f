@@ -304,8 +304,8 @@ c     Check elementtype:
       if (etype .eq. 'solid') then
         call get_stressincrement(sig_trial, sig_old, F_old, F_new, 
      1  F_mid, D_mid, C4, dlambda, flow11, flow12, flow13, dt1, Dp_v)
-      print*,"sig_trial",sig_trial(1),sig_trial(2),sig_trial(3)
-     1   ,sig_trial(4),sig_trial(5),sig_trial(6)
+c      print*,"sig_trial",sig_trial(1),sig_trial(2),sig_trial(3)
+c     1   ,sig_trial(4),sig_trial(5),sig_trial(6)
 c
 c        Check for compressive stresses
         if(sig(1) .le. 0.0d0) then
@@ -317,18 +317,18 @@ c         Compute yield stresses
      2     epsd, hd, g)
           call compute_yield_stress(epsp_tt, ytw, yld0tw, yldcrtw, 
      3     epsd, hd, g)
-          print*,'y', ytt, ytl, ytw
+c          print*,'y', ytt, ytl, ytw
 c
 c         Check if yieldsurface boundary is exceeded
           call compute_yield_coupled(ftrial,sig_trial(1),
      1     sig_trial(4), sig_trial(6), m, ytt, ytl, ytw)
 
-	  print*,'ftrial',ftrial
+c	  print*,'ftrial',ftrial
           if (ftrial .gt. tol) then
 c
 c           Compute plastic flow direction and step size
             call get_flowvector(sig_old,flow11,flow12,flow13)
-            print*,"flow",flow11,flow12,flow13
+c            print*,"flow",flow11,flow12,flow13
             call get_plasticmultiplier(dlambda, sig_old, 
      1        F_old,F_new, F_mid, D_mid, C4, flow11, flow12, flow13,   
      2        dt1, ytt, ytl, ytw, m)
@@ -449,8 +449,18 @@ c *******************************************************************
       double precision F_oldinv(3,3), F_midinv(3,3)
       double precision Dp(3,3), De(3,3),De_bar(3,3),Dp_v(6) 
       double precision De_bar_v(6), CdoubleD_v(6), CdoubleD(3,3)
-      double precision sig_new_bar(3,3), sig_new(3,3)
+      double precision sig_new_bar(3,3), sig_new(3,3), De_v(6)
+
+      double precision J_mid
 c
+      J_mid =  F_mid(1,1)*F_mid(2,2)*F_mid(3,3)  
+     1       - F_mid(1,1)*F_mid(2,3)*F_mid(3,2)  
+     2       - F_mid(1,2)*F_mid(2,1)*F_mid(3,3)  
+     3       + F_mid(1,2)*F_mid(2,3)*F_mid(3,1)  
+     4       + F_mid(1,3)*F_mid(2,1)*F_mid(3,2)  
+     5       - F_mid(1,3)*F_mid(2,2)*F_mid(3,1)
+
+
       call voigt2full(sig_old,sig_old_v)
 c
       call M33inv(F_old, F_oldinv)
@@ -459,7 +469,7 @@ c
 c
       sig_old_bar = matmul(matmul(F_oldinv,sig_old),
      1 transpose(F_oldinv)) 
-c
+c     
       Dp_v = 0.0d0
       Dp_v(1) = dlambda*flow11
       Dp_v(4) = 0.5d0*dlambda*flow12
@@ -467,17 +477,22 @@ c
 c
       call voigt2full(Dp, Dp_v)
 c
-      De = D - Dp 
+      De = D - Dp
+c      call full2voigt(De,De_v) 
+
+c######## DIT DOE IK ###########################
       De_bar = matmul(matmul(F_midinv,De),
      1 transpose(F_midinv))
+c######## DIT ZOU MOETEN #######################
+c      De_bar = matmul(matmul(transpose(F_mid),De),
+c     1 F_mid)
 c
-      call full2voigt(De_bar,De_bar_v)
-c
-      CdoubleD_v = matmul(C4,De_bar_v)
+      call full2voigt(De_bar,De_bar_v)!####
+      CdoubleD_v = matmul(C4,De_bar_v)!####
 c
       call voigt2full(CdoubleD,CdoubleD_v)
 c
-      sig_new_bar = sig_old_bar + dt1*CdoubleD
+      sig_new_bar = sig_old_bar + 1/J_mid*dt1*CdoubleD
 c
       sig_new = matmul(matmul(F_new,sig_new_bar),transpose(F_new))
 c
