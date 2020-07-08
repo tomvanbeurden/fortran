@@ -25,7 +25,7 @@ c      double precision :: eps(6) = 0.0d0 !Initiate strain
       integer :: elsiz = -1   !unused parameter
       double precision :: pi
       double precision :: alpha	     !Loading angle
-      double precision :: alpha_deg = 90.0d0 !Loading angle in degrees
+      double precision :: alpha_deg = 46.0d0 !Loading angle in degrees
       double precision :: u = 0.0d0, u_x = 0.0d0, u_y = 0.0d0 !define displacement components
 
  
@@ -84,8 +84,8 @@ c       call material model:
      1   failel, elsiz, idele, reject)
 c     
 c       write output
-        write(10,*)"", u_x, sig(1), sig(2), sig(3), sig(4), sig(5), 
-     1   sig(6)
+        write(10,*)"", u_x, u_y, sig(1), sig(2), sig(3),
+     1   sig(4), sig(5), sig(6)
 
 c       Displacement increment
         u = u+0.0002d0

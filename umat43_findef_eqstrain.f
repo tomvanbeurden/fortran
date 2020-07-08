@@ -164,6 +164,10 @@ c     for eigproblem Fp
       complex*16 :: eigval(3), eigval_diag_exp(3,3), eigvec(3,3)
       complex*16 :: eigvec_inv(3,3)
       double precision dFp(3,3), dFp_i(3,3), Fp_warning
+      double precision c_right(3,3), V_right(3,3), D_right(3)
+      double precision eps_biot_pl(3,3), u_right(3,3)
+      double precision eps_biot_pl_dev(3,3),eps_biot_pl_tr
+      double precision eps_biot_pl_eq
 
 
 c
@@ -377,12 +381,63 @@ c         Update stresses for tensile case (linearelastic):
           sig = sig_trial
           Fp_new = Fp_old
         endif
+
+c!!!!!!       Calculate eq plastic strain    !!!!!!!
+        c_right = matmul(transpose(Fp_new),Fp_new)
+
+c       Determine eigenvalues/vectors of Right deformation tensor:
+        call DSYEVJ3(c_right, V_right, D_right) ! downloaded open source tool
+c
+        D_right = sqrt(D_right)
+        print*,"D_right",D_right(1),D_right(2),D_right(3)
+c
+c       Compute right stretch tensor:
+        u_right = 0.0d0
+        u_right(1,1) = D_right(1)
+        u_right(2,2) = D_right(2)
+        u_right(3,3) = D_right(3)
+c
+        u_right = matmul(matmul(V_right,u_right),transpose(V_right))
+        print*,"V_right",V_right(1,1),V_right(2,2),V_right(3,3)
+        print*,"u_right",u_right(1,1),u_right(2,2),u_right(3,3)
+c
+c       Compute linear (Biot) strain tensor
+        eps_biot_pl = u_right
+        eps_biot_pl(1,1) = u_right(1,1)-1.0d0
+        eps_biot_pl(2,2) = u_right(2,2)-1.0d0
+        eps_biot_pl(3,3) = u_right(3,3)-1.0d0
+
+        print*,"eps_biot_pl",eps_biot_pl(1,1),eps_biot_pl(2,2),
+     1   eps_biot_pl(3,3), eps_biot_pl(1,2),eps_biot_pl(1,3),
+     2   eps_biot_pl(2,3)
+
+c       Compute dev strain
+        eps_biot_pl_tr = eps_biot_pl(1,1)+eps_biot_pl(2,2)
+     1   +eps_biot_pl(3,3)
+        eps_biot_pl_dev = eps_biot_pl
+        eps_biot_pl_dev(1,1) = eps_biot_pl_dev(1,1) - 
+     1   1/3*eps_biot_pl_tr 
+        eps_biot_pl_dev(2,2) = eps_biot_pl_dev(2,2) - 
+     1   1/3*eps_biot_pl_tr 
+        eps_biot_pl_dev(3,3) = eps_biot_pl_dev(3,3) - 
+     1   1/3*eps_biot_pl_tr 
+
+        eps_biot_pl_eq = sqrt(eps_biot_pl_dev(1,1)*
+     1   eps_biot_pl_dev(1,1)+ eps_biot_pl_dev(2,2)*
+     2   eps_biot_pl_dev(2,2)+ eps_biot_pl_dev(3,3)*
+     3   eps_biot_pl_dev(3,3)+ 2*eps_biot_pl_dev(1,2)* 
+     4   eps_biot_pl_dev(2,1)+ 2*eps_biot_pl_dev(1,3)*
+     5   eps_biot_pl_dev(3,1)+ 2*eps_biot_pl_dev(2,3)*
+     6   eps_biot_pl_dev(3,2))
+
+        print*,"eps_biot_pl_eq",eps_biot_pl_eq
 c
 c       Store relevant paremeters: −−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−
 c
 c       Store plastic strains in history variables:
 c        hsv(1)= epsp_tt
-        hsv(1)= 1-F_new(1,1)
+c        hsv(1)= 1-F_new(1,1)
+        hsv(1)= eps_biot_pl_eq
         hsv(2)= var_nonloc
         var_loc=epsp_tt
         hsv(3)= ftrial
